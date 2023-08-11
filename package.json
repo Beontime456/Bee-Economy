@@ -1,0 +1,17 @@
+{
+  "name": "bee-economy",
+  "version": "1.0.0",
+  "description": "\"Manage a colony of bees as you make money and seat yourselves amongst the best beekeepers.\"",
+  "main": "index.js",
+  "scripts": {
+    "test": "test.js"
+  },
+  "author": "Beontime/Idek",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.12.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.46.0"
+  }
+}
