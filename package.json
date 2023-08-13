@@ -9,7 +9,9 @@
   "author": "Beontime/Idek",
   "license": "ISC",
   "dependencies": {
-    "discord.js": "^14.12.1"
+    "discord.js": "^14.12.1",
+    "sequelize": "^6.32.1",
+    "sqlite3": "^5.1.6"
   },
   "devDependencies": {
     "eslint": "^8.46.0"
