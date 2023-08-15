@@ -80,6 +80,32 @@ const beelist = sequelize.define('beelist', {
     });
 beelist.sync();
 
+const items = sequelize.define('items', {
+    itemid: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true,
+    },
+    itemName: DataTypes.STRING,
+    sellPrice: DataTypes.INTEGER,
+    findType: DataTypes.STRING,
+}, {
+        timestamps: false,
+    });
+items.sync();
+
+
+const inventory = sequelize.define('inventory', {
+    playerid: {
+        type: DataTypes.INTEGER,
+    },
+    itemid: {
+        type: DataTypes.INTEGER,
+    },
+}, {
+        timestamps: false,
+    });
+inventory.sync();
 
 // Initialise a prefix for the bot to see message commands
 const prefix = 'bee ';
@@ -87,6 +113,17 @@ const prefix = 'bee ';
 // Some basic universal functions to be used for several commands.
 function capitaliseWords(sentence) {
     return sentence.replace(/\b\w/g, char => char.toUpperCase());
+}
+function beeFact() {
+    const beeFacts = ['Bumble bees are apart of the apidae bee family.', 'The average bumble bee life span is 4 weeks.', 'The majority of bumble bee species in Europe seemingly like the colours violet or blue.',
+    'A honey bee can fly up to 15 miles per hour.', 'Bees are relatives of ants!', 'Male drone bees don\'t have a stinger.', 'Bees have 5 eyes.', 'Bees struggle distinguishing red colours compared to bluer tones.',
+    'Worker bees communicate with dancing or shaking their bodies.', 'A bee flaps it\'s wings 200x per second.', 'Bees can experience PTSD-like symptoms.', 'Bees recognize different human faces.',
+    'Bees like humans who take care of them!', 'Bees are usually optimistic when successfully foraging, but can become depressed if momentarily trapped by a predatory spider.',
+    'The Megachilidae Bee family has the most diverse nesting habits. They construct hives using mud, gravel, resin, plant fiber, wood pulp, and leaf pulp.', 'The Megachilidae bee family builds their nests in cavities, mainly in rotting wood, using leaves.',
+    'The Andrenidae bee family is collectively known as mining bees. It consists of solitary bees that nest on the ground!', 'Halictidae bees are all ground-nesting bees with extremely diverse levels of sociality. Some species can even switch between being social or solitary depending on their environment.',
+    'The Halictidae family also known as \'Sweet\' bees, because of their small size (4-8mm) these insects comprise some groups which are metallic in appearance.', 'The Stenotritidae bee family is the smallest of the seven bee families with 2 subfamilies and 21 species. The family is only found in Australia and closely related to Colletidae.'];
+    const randomFact = Math.floor(Math.random() * 21);
+    return beeFacts[randomFact];
 }
 
 // When the client is ready, run this code (only once)
@@ -144,6 +181,7 @@ client.on('messageCreate', async (message) => {
     const args = message.content.slice(prefix.length).split(/\s+/);
     const command = args.shift().toLowerCase();
 
+    // Start
     if (command === 'start') {
         try {
             await playerinformation.create({
@@ -162,25 +200,26 @@ client.on('messageCreate', async (message) => {
     else if (command === 'help') {
         const helpembed = new EmbedBuilder()
             .setColor(0xffe521)
-            .setFooter({ text: 'This is an unfinished version of the bot' })
+            .setFooter({ text: beeFact() })
             .setAuthor({ name: 'Help', iconURL: message.author.displayAvatarURL() })
             .addFields(
             { name: 'Help', value: 'Hello! If you are using this command chances are you\'re new here. If not, go down to find the available commands.' },
             { name: 'Commands', value: '- start - Starts your adventure \n- profile - Displays your stats \n- bees - Shows the bees you own \n- shop - Shows the bee shop \n- buy - Lets you buy a bee from the bee shop' });
         await message.channel.send({ embeds: [helpembed] });
     }
+    // Profile
     else if (command === 'profile' || command === 'p' || command === 'pr') {
         if (!args[0]) {
             try {
                 const findplayer = await playerinformation.findOne({ where: { playerid: message.author.id } });
                 const profileembed = new EmbedBuilder()
                 .setColor(0xffe521)
-                .setFooter({ text: 'This is an unfinished version of the bot' })
+                .setFooter({ text: beeFact() })
                 .setAuthor({ name: `${message.author.username}'s profile`, iconURL: message.author.displayAvatarURL() })
                 .setThumbnail(message.author.displayAvatarURL())
                 .addFields(
                     { name: 'Stats', value:
-                    `\nMoney:moneybag:: ${findplayer.get('money')}` +
+                    `\nMoney :moneybag:: ${findplayer.get('money')}` +
                     `\nBee Slots :bee:: ${findplayer.get('beeSlots')}`,
                 });
                 await message.channel.send({ embeds: [profileembed] });
@@ -202,11 +241,11 @@ client.on('messageCreate', async (message) => {
                 const profileembed = new EmbedBuilder()
                     .setColor(0xffe521)
                     .setAuthor({ name: `${profileUser.username}'s profile`, iconURL: profileUser.displayAvatarURL() })
-                    .setFooter({ text: 'This is an unfinished version of the bot' })
+                    .setFooter({ text: beeFact() })
                     .setThumbnail(profileUser.displayAvatarURL())
                     .addFields(
                         { name: 'Stats', value:
-                        `\nMoney:moneybag:: ${findplayer.get('money')}` +
+                        `\nMoney :moneybag:: ${findplayer.get('money')}` +
                         `\nBee Slots :bee:: ${findplayer.get('beeSlots')}`,
                     });
                 await message.channel.send({ embeds: [profileembed] });
@@ -224,6 +263,7 @@ client.on('messageCreate', async (message) => {
             }
         }
     }
+    // Bees
     else if (command === 'bees') {
             if (!args[0]) {
                 try {
@@ -240,7 +280,7 @@ client.on('messageCreate', async (message) => {
                     const beeembed = new EmbedBuilder()
                         .setColor(0xffe521)
                         .setAuthor({ name: `${message.author.username}'s profile`, iconURL: message.author.displayAvatarURL() })
-                        .setFooter({ text: 'This is an unfinished version of the bot' })
+                        .setFooter({ text: beeFact() })
                         .addFields(
                             { name: 'Bees', value: `These are all your bees. They will do various things for you, and are very useful to you. \n\nBee slots: ${await playerbees.count({ where: { playerid: message.author.id } })}/${findplayer.get('beeSlots')}` },
                         );
@@ -275,7 +315,7 @@ client.on('messageCreate', async (message) => {
                         const beeembed = new EmbedBuilder()
                             .setColor(0xffe521)
                             .setAuthor({ name: `${targetUser.username}'s profile`, iconURL: targetUser.displayAvatarURL() })
-                            .setFooter({ text: 'This is an unfinished version of the bot' })
+                            .setFooter({ text: beeFact() })
                             .addFields(
                                 { name: 'Bees', value: `These are all this person's bees. They will do various things for you, and are very useful to you. \n\nBee slots: ${await playerbees.count({ where: { playerid: targetUser.id } })}/${findplayer.get('beeSlots')}` },
                             );
@@ -297,26 +337,34 @@ client.on('messageCreate', async (message) => {
                 }
             }
     }
+    // Shop
     else if (command === 'shop') {
         try {
             let text = '';
-            const shopItems = await beelist.findAll({ where: { findType: 'shop' } });
-            for (let count = 0; count < shopItems.length; count++) {
-                const findItems = await beelist.findOne({ where: { beeid: shopItems[count].dataValues.beeid } });
+            const shopBees = await beelist.findAll({ where: { findType: 'shop' } });
+            for (let count = 0; count < shopBees.length; count++) {
+                const findItems = await beelist.findOne({ where: { beeid: shopBees[count].dataValues.beeid } });
                 text += capitaliseWords(findItems.get('beeName')) + ':' + '  ' + findItems.get('beePrice') + '\n';
+            }
+            let text2 = '';
+            const shopItems = await items.findAll({ where: { findType: 'shop' } });
+            for (let count = 0; count < shopItems.length; count++) {
+                const findItems = await items.findOne({ where: { itemid: shopItems[count].dataValues.itemid } });
+                text2 += capitaliseWords(findItems.get('itemName')) + ':' + '  ' + findItems.get('sellPrice') + '\n';
             }
             const shopembed = new EmbedBuilder()
             .setColor(0xffe521)
             .setTitle('The Bee Shop')
-            .setFooter({ text: 'This is an unfinished version of the bot' })
-            .addFields({ name: '\u200b', value: 'Hello, welcome to the bee shop! Here you can buy bees that can work for you. These bees are really useful, so I think you should buy some.' + '\u200b' })
-            .addFields({ name: 'Bees', value: `\n\n${text}` });
+            .setFooter({ text: beeFact() })
+            .addFields({ name: '\u200b', value: 'Hello, welcome to the bee shop! Here you can buy bees that can work for you. These bees are really useful, so I think you should buy some. You can also buy items which may aid you.' + '\u200b' })
+            .addFields({ name: 'Bees', value: `\n\n${text}` }, { name: 'Items', value: `\n\n${text2}` });
         await message.channel.send({ embeds: [shopembed] });
         }
         catch (error) {
             await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
         }
     }
+    // Buy
     else if (command === 'buy') {
         try {
             const findplayer = await playerinformation.findOne({ where: { playerid: message.author.id } });
@@ -350,6 +398,57 @@ client.on('messageCreate', async (message) => {
                 await message.channel.send('This isn\'t a buyable kind of bee!');
             }
             else {
+                await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+            }
+        }
+    }
+    // Inventory
+    else if (command === 'inventory' || command === 'i') {
+        if (!args[0]) {
+            try {
+                let text = '';
+                const findPlayerInven = await inventory.findAll({ where: { playerid: message.author.id } });
+                for (let count = 0; count < findPlayerInven.length; count++) {
+                    const findItems = await items.findOne({ where: { beeid: findPlayerInven[count].dataValues.itemid } });
+                    text += capitaliseWords(findItems.get('itemName')) + ':' + '  ' + findItems.get('itemAmount') + '\n';
+                }
+                if (text === '') {
+                    text += 'No items here :( \nFind or buy some.';
+                }
+                const invenembed = new EmbedBuilder()
+                    .setColor(0xffe521)
+                    .setAuthor({ name: `${message.author.username}'s inventory`, iconURL: message.author.displayAvatarURL() })
+                    .setFooter({ text: beeFact() })
+                    .addFields({ name: 'Inventory', value: 'This is your inventory. All of your items will appear here.' })
+                    .addFields({ name: 'Items', value: `\n${text}` });
+                await message.channel.send({ embeds: [invenembed] });
+            }
+            catch (error) {
+                await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+            }
+        }
+        else {
+            try {
+                const mentionId = args[0].replace(/[\\<>@#&!]/g, '');
+                const targetUser = await client.users.fetch(mentionId);
+                let text = '';
+                const findPlayerInven = await inventory.findAll({ where: { playerid: targetUser.id } });
+                for (let count = 0; count < findPlayerInven.length; count++) {
+                    const findItems = await items.findOne({ where: { beeid: findPlayerInven[count].dataValues.itemid } });
+                    text += capitaliseWords(findItems.get('itemName')) + ':' + '  ' + findItems.get('itemAmount') + '\n';
+                }
+                if (text === '') {
+                    text += 'No items here :(';
+                }
+                const invenembed = new EmbedBuilder()
+                    .setColor(0xffe521)
+                    .setAuthor({ name: `${targetUser.username}'s inventory`, iconURL: targetUser.displayAvatarURL() })
+                    .setFooter({ text: beeFact() })
+                    .addFields({ name: 'Inventory', value: 'This is your inventory. All of your items will appear here.' })
+                    .addFields({ name: 'Items', value: `\n${text}` });
+                await message.channel.send({ embeds: [invenembed] });
+            }
+            catch (error) {
                 await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
             }
         }
