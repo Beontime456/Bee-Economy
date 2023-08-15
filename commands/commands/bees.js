@@ -70,7 +70,7 @@ module.exports = {
                     beeFields.push({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
                 }
                 const beeembed = new EmbedBuilder()
-                    .setColor(0x2dbd54)
+                    .setColor(0xffe521)
                     .setAuthor({ name: `${interaction.user.username}'s profile`, iconURL: interaction.user.displayAvatarURL() })
                     .setFooter({ text: 'This is an unfinished version of the bot' })
                     .addFields(
@@ -103,7 +103,7 @@ module.exports = {
                         beeFields.push({ name: '\u200b', value: 'This person has no bees :(' });
                     }
                     const beeembed = new EmbedBuilder()
-                        .setColor(0x2dbd54)
+                        .setColor(0xffe521)
                         .setAuthor({ name: `${requestplayer.username}'s profile`, iconURL: requestplayer.displayAvatarURL() })
                         .setFooter({ text: 'This is an unfinished version of the bot' })
                         .addFields(

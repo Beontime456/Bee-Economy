@@ -32,13 +32,15 @@ module.exports = {
             try {
                 const findplayer = await playerinformation.findOne({ where: { playerid: interaction.user.id } });
                 const profileembed = new EmbedBuilder()
-                .setColor(0x2dbd54)
+                .setColor(0xffe521)
                 .setFooter({ text: 'This is an unfinished version of the bot' })
                 .setAuthor({ name: `${interaction.user.username}'s profile`, iconURL: interaction.user.displayAvatarURL() })
                 .setThumbnail(interaction.user.displayAvatarURL())
                 .addFields(
                     { name: 'Stats', value:
-                    '\nMoney:moneybag:: ' + findplayer.get('money') });
+                    `\nMoney:moneybag:: ${findplayer.get('money')}` +
+                    `\nBee Slots :bee:: ${findplayer.get('beeSlots')}`,
+                });
                 interaction.reply({ embeds: [profileembed] });
             }
             catch (error) {
@@ -54,13 +56,15 @@ module.exports = {
             try {
                 const findplayer = await playerinformation.findOne({ where: { playerid: requestplayer.id } });
                 const profileembed = new EmbedBuilder()
-                    .setColor(0x2dbd54)
+                    .setColor(0xffe521)
                     .setAuthor({ name: `${requestplayer.username}'s profile`, iconURL: requestplayer.displayAvatarURL() })
                     .setFooter({ text: 'This is an unfinished version of the bot' })
                     .setThumbnail(requestplayer.displayAvatarURL())
                     .addFields(
                         { name: 'Stats', value:
-                        '\nMoney :moneybag:: ' + findplayer.get('money') });
+                        `\nMoney:moneybag:: ${findplayer.get('money')}` +
+                        `\nBee Slots :bee:: ${findplayer.get('beeSlots')}`,
+                });
                 interaction.reply({ embeds: [profileembed] });
             }
             catch (error) {

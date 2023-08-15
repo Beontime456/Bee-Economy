@@ -159,18 +159,30 @@ client.on('messageCreate', async (message) => {
                 }
             }
     }
-    else if (command === 'profile') {
+    else if (command === 'help') {
+        const helpembed = new EmbedBuilder()
+            .setColor(0xffe521)
+            .setFooter({ text: 'This is an unfinished version of the bot' })
+            .setAuthor({ name: 'Help', iconURL: message.author.displayAvatarURL() })
+            .addFields(
+            { name: 'Help', value: 'Hello! If you are using this command chances are you\'re new here. If not, go down to find the available commands.' },
+            { name: 'Commands', value: '- start - Starts your adventure \n- profile - Displays your stats \n- bees - Shows the bees you own \n- shop - Shows the bee shop \n- buy - Lets you buy a bee from the bee shop' });
+        await message.channel.send({ embeds: [helpembed] });
+    }
+    else if (command === 'profile' || command === 'p' || command === 'pr') {
         if (!args[0]) {
             try {
                 const findplayer = await playerinformation.findOne({ where: { playerid: message.author.id } });
                 const profileembed = new EmbedBuilder()
-                .setColor(0x2dbd54)
+                .setColor(0xffe521)
                 .setFooter({ text: 'This is an unfinished version of the bot' })
                 .setAuthor({ name: `${message.author.username}'s profile`, iconURL: message.author.displayAvatarURL() })
                 .setThumbnail(message.author.displayAvatarURL())
                 .addFields(
                     { name: 'Stats', value:
-                    '\nMoney:moneybag:: ' + findplayer.get('money') });
+                    `\nMoney:moneybag:: ${findplayer.get('money')}` +
+                    `\nBee Slots :bee:: ${findplayer.get('beeSlots')}`,
+                });
                 await message.channel.send({ embeds: [profileembed] });
             }
             catch (error) {
@@ -188,13 +200,15 @@ client.on('messageCreate', async (message) => {
                 const findplayer = await playerinformation.findOne({ where: { playerid: mentionId } });
                 const profileUser = await client.users.fetch(mentionId);
                 const profileembed = new EmbedBuilder()
-                    .setColor(0x2dbd54)
+                    .setColor(0xffe521)
                     .setAuthor({ name: `${profileUser.username}'s profile`, iconURL: profileUser.displayAvatarURL() })
                     .setFooter({ text: 'This is an unfinished version of the bot' })
                     .setThumbnail(profileUser.displayAvatarURL())
                     .addFields(
                         { name: 'Stats', value:
-                        '\nMoney :moneybag:: ' + findplayer.get('money') });
+                        `\nMoney:moneybag:: ${findplayer.get('money')}` +
+                        `\nBee Slots :bee:: ${findplayer.get('beeSlots')}`,
+                    });
                 await message.channel.send({ embeds: [profileembed] });
             }
             catch (error) {
@@ -224,7 +238,7 @@ client.on('messageCreate', async (message) => {
                         beeFields.push({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
                     }
                     const beeembed = new EmbedBuilder()
-                        .setColor(0x2dbd54)
+                        .setColor(0xffe521)
                         .setAuthor({ name: `${message.author.username}'s profile`, iconURL: message.author.displayAvatarURL() })
                         .setFooter({ text: 'This is an unfinished version of the bot' })
                         .addFields(
@@ -259,7 +273,7 @@ client.on('messageCreate', async (message) => {
                             beeFields.push({ name: '\u200b', value: 'This person has no bees :(' });
                         }
                         const beeembed = new EmbedBuilder()
-                            .setColor(0x2dbd54)
+                            .setColor(0xffe521)
                             .setAuthor({ name: `${targetUser.username}'s profile`, iconURL: targetUser.displayAvatarURL() })
                             .setFooter({ text: 'This is an unfinished version of the bot' })
                             .addFields(
@@ -292,7 +306,7 @@ client.on('messageCreate', async (message) => {
                 text += capitaliseWords(findItems.get('beeName')) + ':' + '  ' + findItems.get('beePrice') + '\n';
             }
             const shopembed = new EmbedBuilder()
-            .setColor(0x2dbd54)
+            .setColor(0xffe521)
             .setTitle('The Bee Shop')
             .setFooter({ text: 'This is an unfinished version of the bot' })
             .addFields({ name: '\u200b', value: 'Hello, welcome to the bee shop! Here you can buy bees that can work for you. These bees are really useful, so I think you should buy some.' + '\u200b' })

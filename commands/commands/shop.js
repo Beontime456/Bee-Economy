@@ -42,7 +42,7 @@ module.exports = {
                 text += capitaliseWords(findItems.get('beeName')) + ':' + '  ' + findItems.get('beePrice') + '\n';
             }
             const shopembed = new EmbedBuilder()
-            .setColor(0x2dbd54)
+            .setColor(0xffe521)
             .setTitle('The Bee Shop')
             .setFooter({ text: 'This is an unfinished version of the bot' })
             .addFields({ name: '\u200b', value: 'Hello, welcome to the bee shop! Here you can buy bees that can work for you. These bees are really useful, so I think you should buy some.' + '\u200b' })
