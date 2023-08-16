@@ -27,7 +27,8 @@ sequelize.sync({ force }).then(async () => {
         itemList.upsert({ itemName: 'ancient shard', sellPrice: 10000, findType: 'shop' }),
     ];
 
-    await Promise.all(bees, items);
+    await Promise.all(bees);
+    await Promise.all(items);
     console.log('Database synced');
 
     sequelize.close();

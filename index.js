@@ -102,6 +102,7 @@ const inventory = sequelize.define('inventory', {
     itemid: {
         type: DataTypes.INTEGER,
     },
+    itemAmount: DataTypes.INTEGER,
 }, {
         timestamps: false,
     });
@@ -229,7 +230,7 @@ client.on('messageCreate', async (message) => {
                     await message.channel.send('You need to start! Type bee start in order to start!');
                 }
                 else {
-                    await message.channel.send('There was an error!');
+                    await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
                 }
             }
         }
@@ -369,24 +370,57 @@ client.on('messageCreate', async (message) => {
         try {
             const findplayer = await playerinformation.findOne({ where: { playerid: message.author.id } });
             if (findplayer != null) {
+                let lastArg = parseInt(args[args.length - 1]);
+                if (typeof lastArg === 'number' && Number.isNaN(lastArg) != true) {
+                    args.pop();
+                }
+                else {
+                    lastArg = 1;
+                }
                 const argsText = args.join(' ').toLowerCase();
                 const findBee = await beelist.findOne({ where: { beeName: argsText, findType: 'shop' } });
-                if (findplayer.get('money') >= findBee.get('beePrice')) {
-                    if (findplayer.get('beeSlots') > await playerbees.count({ where: { playerid: message.author.id } })) {
-                        await playerbees.create({
-                            playerid: message.author.id,
-                            beeid: findBee.get('beeid'),
-                            beeRarity: findBee.get('beeBaseRarity'),
-                        });
-                        await findplayer.update({ money: findplayer.get('money') - findBee.get('beePrice') });
-                        await message.channel.send(`Bought the ${capitaliseWords(findBee.get('beeName'))}!`);
+                const findItem = await items.findOne({ where: { itemName: argsText, findType: 'shop' } });
+                if (findBee != null) {
+                    if (findplayer.get('money') >= findBee.get('beePrice') * lastArg) {
+                        if (findplayer.get('beeSlots') >= await playerbees.count({ where: { playerid: message.author.id } }) + lastArg) {
+                            for (let count = 0; count < lastArg; count++) {
+                                await playerbees.create({
+                                    playerid: message.author.id,
+                                    beeid: findBee.get('beeid'),
+                                    beeRarity: findBee.get('beeBaseRarity'),
+                                });
+                            }
+                            await findplayer.update({ money: findplayer.get('money') - findBee.get('beePrice') * lastArg });
+                            if (lastArg > 1) {
+                                await message.channel.send(`Bought ${lastArg} ${capitaliseWords(findBee.get('beeName'))}s!`);
+                            }
+                            else {
+                                await message.channel.send(`Bought ${lastArg} ${capitaliseWords(findBee.get('beeName'))}!`);
+                            }
+                        }
+                        else {
+                            await message.channel.send('You don\'t have enough bee slots for more bees! Get some more bozo');
+                        }
                     }
                     else {
-                        await message.channel.send('You don\'t have enough bee slots for another bee! Get some more bozo');
+                        await message.channel.send('You are too poor lmao');
+                    }
+                }
+                else if (findItem != null) {
+                    if (findplayer.get('money') >= findItem.get('sellPrice') * lastArg) {
+                        await inventory.create({
+                            playerid: message.author.id,
+                            itemid: findItem.get('itemid'),
+                            itemAmount: 1,
+                        });
+                        await message.channel.send(`Bought the ${capitaliseWords(findItem.get('itemName'))}!`);
+                    }
+                    else {
+                        await message.channel.send('You are too poor lmao');
                     }
                 }
                 else {
-                    await message.channel.send('You are too poor lmao');
+                    await message.channel.send('This isn\'t a buyable kind of bee or item!');
                 }
             }
             else {
@@ -394,12 +428,7 @@ client.on('messageCreate', async (message) => {
             }
         }
         catch (error) {
-            if (error.name === 'TypeError') {
-                await message.channel.send('This isn\'t a buyable kind of bee!');
-            }
-            else {
-                await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
-            }
+            await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
         }
     }
     // Inventory
@@ -409,8 +438,8 @@ client.on('messageCreate', async (message) => {
                 let text = '';
                 const findPlayerInven = await inventory.findAll({ where: { playerid: message.author.id } });
                 for (let count = 0; count < findPlayerInven.length; count++) {
-                    const findItems = await items.findOne({ where: { beeid: findPlayerInven[count].dataValues.itemid } });
-                    text += capitaliseWords(findItems.get('itemName')) + ':' + '  ' + findItems.get('itemAmount') + '\n';
+                    const findItems = await items.findOne({ where: { itemid: findPlayerInven[count].dataValues.itemid } });
+                    text += capitaliseWords(findItems.get('itemName')) + ':' + '  ' + findPlayerInven[count].get('itemAmount') + '\n';
                 }
                 if (text === '') {
                     text += 'No items here :( \nFind or buy some.';
@@ -434,8 +463,8 @@ client.on('messageCreate', async (message) => {
                 let text = '';
                 const findPlayerInven = await inventory.findAll({ where: { playerid: targetUser.id } });
                 for (let count = 0; count < findPlayerInven.length; count++) {
-                    const findItems = await items.findOne({ where: { beeid: findPlayerInven[count].dataValues.itemid } });
-                    text += capitaliseWords(findItems.get('itemName')) + ':' + '  ' + findItems.get('itemAmount') + '\n';
+                    const findItems = await items.findOne({ where: { itemid: findPlayerInven[count].dataValues.itemid } });
+                    text += capitaliseWords(findItems.get('itemName')) + ':' + '  ' + findPlayerInven[count].get('itemAmount') + '\n';
                 }
                 if (text === '') {
                     text += 'No items here :(';
