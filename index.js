@@ -408,12 +408,24 @@ client.on('messageCreate', async (message) => {
                 }
                 else if (findItem != null) {
                     if (findplayer.get('money') >= findItem.get('sellPrice') * lastArg) {
-                        await inventory.create({
-                            playerid: message.author.id,
-                            itemid: findItem.get('itemid'),
-                            itemAmount: 1,
-                        });
-                        await message.channel.send(`Bought the ${capitaliseWords(findItem.get('itemName'))}!`);
+                        const findInvenItem = await inventory.findOne({ where: { itemid: findItem.get('itemid'), playerid: message.author.id } });
+                        if (findInvenItem === null) {
+                            await inventory.create({
+                                playerid: message.author.id,
+                                itemid: findItem.get('itemid'),
+                                itemAmount: 1 * lastArg,
+                            });
+                        }
+                        else {
+                            await findInvenItem.update({ itemAmount: findInvenItem.get('itemAmount') + 1 * lastArg });
+                        }
+                        await findplayer.update({ money: findplayer.get('money') - findItem.get('sellPrice') * lastArg });
+                        if (lastArg > 1) {
+                            await message.channel.send(`Bought ${lastArg} ${capitaliseWords(findItem.get('itemName'))}s!`);
+                        }
+                        else {
+                            await message.channel.send(`Bought the ${capitaliseWords(findItem.get('itemName'))}!`);
+                        }
                     }
                     else {
                         await message.channel.send('You are too poor lmao');
