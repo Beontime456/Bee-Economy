@@ -17,9 +17,9 @@ const force = process.argv.includes('--force') || process.argv.includes('-f');
 
 sequelize.sync({ force }).then(async () => {
     const bees = [
-        beeList.upsert({ beeName: 'basic bee', beeBaseRarity: 'common', findType: 'shop', beePrice: 50 }),
-        beeList.upsert({ beeName: 'god bee', beeBaseRarity: 'epic', findType: 'none', beePrice: 0 }),
-        beeList.upsert({ beeName: 'test bee', beeBaseRarity: 'mythical', findType: 'shop', beePrice: 10000000 }),
+        beeList.upsert({ beeName: 'basic bee', beeBaseTier: 1, findType: 'shop', beePrice: 50 }),
+        beeList.upsert({ beeName: 'god bee', beeBaseTier: 1, findType: 'none', beePrice: 0 }),
+        beeList.upsert({ beeName: 'test bee', beeBaseTier: 99, findType: 'shop', beePrice: 10000000 }),
     ];
     const items = [
         itemList.upsert({ itemName: 'flower petal', sellPrice: 100, findType: 'backyard' }),

@@ -6,6 +6,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         money: DataTypes.INTEGER,
         beeSlots: DataTypes.INTEGER,
+        area: DataTypes.STRING,
     }, {
             timestamps: false,
         });
