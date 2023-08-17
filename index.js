@@ -13,6 +13,7 @@ const client = new Client({ intents: [
     ] });
 
 client.commands = new Collection();
+client.energy = new Collection();
 
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
@@ -172,6 +173,14 @@ client.on(Events.InteractionCreate, async interaction => {
             }
         }
     }
+    /*
+    if (!client.energy.has(interaction.user.id)) {
+        client.energy.set(interaction.user.id, new Collection());
+    }
+
+    const now = Date.now;
+    const timestamps = client.energy.get(interaction.user.id);
+    */
 });
 
 // When the bot sees a message, it will analyse it for a prefix or if the sender is a bot.
