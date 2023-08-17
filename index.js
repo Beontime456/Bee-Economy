@@ -50,6 +50,7 @@ const playerinformation = sequelize.define('playerinformation', {
     },
     money: DataTypes.INTEGER,
     beeSlots: DataTypes.INTEGER,
+    area: DataTypes.STRING,
 }, {
         timestamps: false,
     });
@@ -58,7 +59,9 @@ playerinformation.sync();
 const playerbees = sequelize.define('playerbees', {
     playerid: DataTypes.STRING,
     beeid: DataTypes.INTEGER,
-    beeRarity: DataTypes.STRING,
+    beeLevel: DataTypes.INTEGER,
+    beeTier: DataTypes.INTEGER,
+    beeEvolved: DataTypes.STRING,
 }, {
         timestamps: false,
     });
@@ -73,7 +76,7 @@ const beelist = sequelize.define('beelist', {
     beeName: {
         type: DataTypes.STRING,
     },
-    beeBaseRarity: DataTypes.STRING,
+    beeBaseTier: DataTypes.INTEGER,
     findType: DataTypes.STRING,
     beePrice: DataTypes.INTEGER,
 }, {
@@ -198,6 +201,7 @@ client.on('messageCreate', async (message) => {
                 playerid: message.author.id,
                 money: 500,
                 beeSlots: 6,
+                area: 'backyard',
             });
             await message.channel.send('Congrats, you have now started!');
             }
@@ -214,7 +218,7 @@ client.on('messageCreate', async (message) => {
             .setAuthor({ name: 'Help', iconURL: message.author.displayAvatarURL() })
             .addFields(
             { name: 'Help', value: 'Hello! If you are using this command chances are you\'re new here. If not, go down to find the available commands.' },
-            { name: 'Commands', value: '- start - Starts your adventure \n- profile - Displays your stats \n- bees - Shows the bees you own \n- shop - Shows the bee shop \n- buy - Lets you buy a bee from the bee shop' });
+            { name: 'Commands', value: '- start - Starts your adventure \n- profile - Displays your stats \n- bees - Shows the bees you own \n- shop - Shows the bee shop \n- buy - Lets you buy a bee or item from the bee shop \n- inventory - Lets you check all the items in your inventory' });
         await message.channel.send({ embeds: [helpembed] });
     }
     // Profile
@@ -230,7 +234,8 @@ client.on('messageCreate', async (message) => {
                 .addFields(
                     { name: 'Stats', value:
                     `\nMoney :moneybag:: ${findplayer.get('money')}` +
-                    `\nBee Slots :bee:: ${findplayer.get('beeSlots')}`,
+                    `\nBee Slots :bee:: ${findplayer.get('beeSlots')}` +
+                    `\nArea :island:: ${capitaliseWords(findplayer.get('area'))}`,
                 });
                 await message.channel.send({ embeds: [profileembed] });
             }
@@ -282,7 +287,7 @@ client.on('messageCreate', async (message) => {
                     const beeFields = [];
                     for (let count = 0; count < findPlayerBees.length; count++) {
                         const nextBee = await beelist.findOne({ where: { beeid: findPlayerBees[count].dataValues.beeid } });
-                        beeFields.push({ name: capitaliseWords(nextBee.get('beeName')), value: capitaliseWords(findPlayerBees[count].dataValues.beeRarity), inline: true });
+                        beeFields.push({ name: capitaliseWords(nextBee.get('beeName')), value: `Tier: ${findPlayerBees[count].dataValues.beeTier} \nLevel: ${findPlayerBees[count].dataValues.beeLevel} \nEvolved: ${capitaliseWords(findPlayerBees[count].dataValues.beeEvolved)}`, inline: true });
                     }
                     if (beeFields.length === 0) {
                         beeFields.push({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
@@ -317,7 +322,7 @@ client.on('messageCreate', async (message) => {
                         const beeFields = [];
                         for (let count = 0; count < findPlayerBees.length; count++) {
                             const nextBee = await beelist.findOne({ where: { beeid: findPlayerBees[count].dataValues.beeid } });
-                            beeFields.push({ name: capitaliseWords(nextBee.get('beeName')), value: capitaliseWords(findPlayerBees[count].dataValues.beeRarity), inline: true });
+                            beeFields.push({ name: capitaliseWords(nextBee.get('beeName')), value: `Tier: ${findPlayerBees[count].dataValues.beeTier} \nLevel: ${findPlayerBees[count].dataValues.beeLevel} \nEvolved: ${findPlayerBees[count].dataValues.beeEvolved}`, inline: true });
                         }
                         if (beeFields.length === 0) {
                             beeFields.push({ name: '\u200b', value: 'This person has no bees :(' });
@@ -396,7 +401,9 @@ client.on('messageCreate', async (message) => {
                                 await playerbees.create({
                                     playerid: message.author.id,
                                     beeid: findBee.get('beeid'),
-                                    beeRarity: findBee.get('beeBaseRarity'),
+                                    beeLevel: 1,
+                                    beeTier: findBee.get('beeBaseTier'),
+                                    beeEvolved: 'no',
                                 });
                             }
                             await findplayer.update({ money: findplayer.get('money') - findBee.get('beePrice') * lastArg });
