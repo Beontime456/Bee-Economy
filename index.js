@@ -13,7 +13,6 @@ const client = new Client({ intents: [
     ] });
 
 client.commands = new Collection();
-client.energy = new Collection();
 
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
@@ -50,6 +49,8 @@ const playerinformation = sequelize.define('playerinformation', {
     },
     money: DataTypes.INTEGER,
     beeSlots: DataTypes.INTEGER,
+    energy: DataTypes.INTEGER,
+    lastEnergyRegen: DataTypes.INTEGER,
     area: DataTypes.STRING,
 }, {
         timestamps: false,
@@ -176,14 +177,24 @@ client.on(Events.InteractionCreate, async interaction => {
             }
         }
     }
-    /*
-    if (!client.energy.has(interaction.user.id)) {
-        client.energy.set(interaction.user.id, new Collection());
-    }
 
     const now = Date.now;
-    const timestamps = client.energy.get(interaction.user.id);
-    */
+    const findplayer = await playerinformation.findOne({ where: { playerid: interaction.user.id } });
+    const lastCommandTime = findplayer.get('lastEnergyRegen');
+
+    if (lastCommandTime === null) {
+        findplayer.update({ lastEnergyRegen: now });
+    }
+    else {
+        const timeDiff = (now - lastCommandTime) / 1000;
+        if (timeDiff > 0.9) {
+            let newEnergy = findplayer.get('energy') + timeDiff;
+            if (newEnergy > 200) {
+                newEnergy = 200;
+            }
+            findplayer.update({ energy: newEnergy });
+        }
+    }
 });
 
 // When the bot sees a message, it will analyse it for a prefix or if the sender is a bot.
@@ -201,6 +212,8 @@ client.on('messageCreate', async (message) => {
                 playerid: message.author.id,
                 money: 500,
                 beeSlots: 6,
+                energy: 200,
+                lastEnergyRegen: null,
                 area: 'backyard',
             });
             await message.channel.send('Congrats, you have now started!');
@@ -235,7 +248,8 @@ client.on('messageCreate', async (message) => {
                     { name: 'Stats', value:
                     `\nMoney :moneybag:: ${findplayer.get('money')}` +
                     `\nBee Slots :bee:: ${findplayer.get('beeSlots')}` +
-                    `\nArea :island:: ${capitaliseWords(findplayer.get('area'))}`,
+                    `\nArea :island:: ${capitaliseWords(findplayer.get('area'))}` +
+                    `\nEnergy :zap:: ${findplayer.get('energy')}`,
                 });
                 await message.channel.send({ embeds: [profileembed] });
             }
@@ -406,7 +420,7 @@ client.on('messageCreate', async (message) => {
                                     beeEvolved: 'no',
                                 });
                             }
-                            await findplayer.update({ money: findplayer.get('money') - findBee.get('beePrice') * lastArg });
+                            await findplayer.update({ money: findplayer.get('money') - findBee.get('beePrice') * lastArg, energy: findplayer.get('energy') - 50 });
                             if (lastArg > 1) {
                                 await message.channel.send(`Bought ${lastArg} ${capitaliseWords(findBee.get('beeName'))}s!`);
                             }
@@ -507,6 +521,25 @@ client.on('messageCreate', async (message) => {
             }
             catch (error) {
                 await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+            }
+        }
+    }
+
+    const now = Date.now();
+    const findplayer = await playerinformation.findOne({ where: { playerid: message.author.id } });
+    if (findplayer != null) {
+        const lastCommandTime = findplayer.get('lastEnergyRegen');
+        if (lastCommandTime === null) {
+            findplayer.update({ lastEnergyRegen: now });
+        }
+        else {
+            const timeDiff = (now - lastCommandTime) / 1000;
+            if (timeDiff > 0.9) {
+                let newEnergy = Math.floor(findplayer.get('energy') + timeDiff);
+                if (newEnergy > 200) {
+                    newEnergy = 200;
+                }
+                findplayer.update({ energy: newEnergy });
             }
         }
     }

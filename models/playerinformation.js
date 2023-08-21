@@ -6,6 +6,8 @@ module.exports = (sequelize, DataTypes) => {
         },
         money: DataTypes.INTEGER,
         beeSlots: DataTypes.INTEGER,
+        energy: DataTypes.INTEGER,
+        lastEnergyRegen: DataTypes.INTEGER,
         area: DataTypes.STRING,
     }, {
             timestamps: false,
