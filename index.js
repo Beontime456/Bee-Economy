@@ -128,7 +128,7 @@ function beeFact() {
     'The Megachilidae Bee family has the most diverse nesting habits. They construct hives using mud, gravel, resin, plant fiber, wood pulp, and leaf pulp.', 'The Megachilidae bee family builds their nests in cavities, mainly in rotting wood, using leaves.',
     'The Andrenidae bee family is collectively known as mining bees. It consists of solitary bees that nest on the ground!', 'Halictidae bees are all ground-nesting bees with extremely diverse levels of sociality. Some species can even switch between being social or solitary depending on their environment.',
     'The Halictidae family also known as \'Sweet\' bees, because of their small size (4-8mm) these insects comprise some groups which are metallic in appearance.', 'The Stenotritidae bee family is the smallest of the seven bee families with 2 subfamilies and 21 species. The family is only found in Australia and closely related to Colletidae.'];
-    const randomFact = Math.floor(Math.random() * 21);
+    const randomFact = Math.floor(Math.random() * 20) + 1;
     return beeFacts[randomFact];
 }
 
@@ -180,19 +180,21 @@ client.on(Events.InteractionCreate, async interaction => {
 
     const now = Date.now;
     const findplayer = await playerinformation.findOne({ where: { playerid: interaction.user.id } });
-    const lastCommandTime = findplayer.get('lastEnergyRegen');
 
-    if (lastCommandTime === null) {
-        findplayer.update({ lastEnergyRegen: now });
-    }
-    else {
-        const timeDiff = (now - lastCommandTime) / 1000;
-        if (timeDiff > 0.9) {
-            let newEnergy = findplayer.get('energy') + timeDiff;
-            if (newEnergy > 200) {
-                newEnergy = 200;
+    if (findplayer != null) {
+        const lastCommandTime = findplayer.get('lastEnergyRegen');
+        if (lastCommandTime === null) {
+            findplayer.update({ lastEnergyRegen: now });
+        }
+        else {
+            const timeDiff = (now - lastCommandTime) / 1000;
+            if (timeDiff >= 1) {
+                let newEnergy = findplayer.get('energy') + timeDiff;
+                if (newEnergy > 200) {
+                    newEnergy = 200;
+                }
+                findplayer.update({ energy: newEnergy });
             }
-            findplayer.update({ energy: newEnergy });
         }
     }
 });
@@ -204,6 +206,25 @@ client.on('messageCreate', async (message) => {
 
     const args = message.content.slice(prefix.length).split(/\s+/);
     const command = args.shift().toLowerCase();
+
+    const now = Date.now();
+    const findplayer = await playerinformation.findOne({ where: { playerid: message.author.id } });
+    if (findplayer != null) {
+        const lastCommandTime = findplayer.get('lastEnergyRegen');
+        if (lastCommandTime === null) {
+            findplayer.update({ lastEnergyRegen: now });
+        }
+        else {
+            const timeDiff = (now - lastCommandTime) / 1000;
+            if (timeDiff >= 1) {
+                let newEnergy = Math.floor(findplayer.get('energy') + timeDiff);
+                if (newEnergy > 200) {
+                    newEnergy = 200;
+                }
+                findplayer.update({ energy: newEnergy, lastEnergyRegen: now });
+            }
+        }
+    }
 
     // Start
     if (command === 'start') {
@@ -238,7 +259,6 @@ client.on('messageCreate', async (message) => {
     else if (command === 'profile' || command === 'p' || command === 'pr') {
         if (!args[0]) {
             try {
-                const findplayer = await playerinformation.findOne({ where: { playerid: message.author.id } });
                 const profileembed = new EmbedBuilder()
                 .setColor(0xffe521)
                 .setFooter({ text: beeFact() })
@@ -259,13 +279,13 @@ client.on('messageCreate', async (message) => {
                 }
                 else {
                     await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                    console.log(error);
                 }
             }
         }
         else if (args[0]) {
             try {
                 const mentionId = args[0].replace(/[\\<>@#&!]/g, '');
-                const findplayer = await playerinformation.findOne({ where: { playerid: mentionId } });
                 const profileUser = await client.users.fetch(mentionId);
                 const profileembed = new EmbedBuilder()
                     .setColor(0xffe521)
@@ -288,6 +308,7 @@ client.on('messageCreate', async (message) => {
                 }
                 else {
                     await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                    console.log(error);
                 }
             }
         }
@@ -297,7 +318,6 @@ client.on('messageCreate', async (message) => {
             if (!args[0]) {
                 try {
                     const findPlayerBees = await playerbees.findAll({ where: { playerid: message.author.id } });
-                    const findplayer = await playerinformation.findOne({ where: { playerid: message.author.id } });
                     const beeFields = [];
                     for (let count = 0; count < findPlayerBees.length; count++) {
                         const nextBee = await beelist.findOne({ where: { beeid: findPlayerBees[count].dataValues.beeid } });
@@ -324,6 +344,7 @@ client.on('messageCreate', async (message) => {
                     }
                     else {
                         await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                        console.log(error);
                     }
                 }
             }
@@ -332,7 +353,6 @@ client.on('messageCreate', async (message) => {
                     const mentionId = args[0].replace(/[\\<>@#&!]/g, '');
                     const targetUser = await client.users.fetch(mentionId);
                     const findPlayerBees = await playerbees.findAll({ where: { playerid: targetUser.id } });
-                    const findplayer = await playerinformation.findOne({ where: { playerid: targetUser.id } });
                         const beeFields = [];
                         for (let count = 0; count < findPlayerBees.length; count++) {
                             const nextBee = await beelist.findOne({ where: { beeid: findPlayerBees[count].dataValues.beeid } });
@@ -362,6 +382,7 @@ client.on('messageCreate', async (message) => {
                     }
                     else {
                         await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                        console.log(error);
                     }
                 }
             }
@@ -396,7 +417,6 @@ client.on('messageCreate', async (message) => {
     // Buy
     else if (command === 'buy') {
         try {
-            const findplayer = await playerinformation.findOne({ where: { playerid: message.author.id } });
             if (findplayer != null) {
                 let lastArg = parseInt(args[args.length - 1]);
                 if (typeof lastArg === 'number' && Number.isNaN(lastArg) != true) {
@@ -420,7 +440,7 @@ client.on('messageCreate', async (message) => {
                                     beeEvolved: 'no',
                                 });
                             }
-                            await findplayer.update({ money: findplayer.get('money') - findBee.get('beePrice') * lastArg, energy: findplayer.get('energy') - 50 });
+                            await findplayer.update({ money: findplayer.get('money') - findBee.get('beePrice') * lastArg });
                             if (lastArg > 1) {
                                 await message.channel.send(`Bought ${lastArg} ${capitaliseWords(findBee.get('beeName'))}s!`);
                             }
@@ -471,6 +491,7 @@ client.on('messageCreate', async (message) => {
         }
         catch (error) {
             await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+            console.log(error);
         }
     }
     // Inventory
@@ -496,6 +517,7 @@ client.on('messageCreate', async (message) => {
             }
             catch (error) {
                 await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                console.log(error);
             }
         }
         else {
@@ -521,25 +543,7 @@ client.on('messageCreate', async (message) => {
             }
             catch (error) {
                 await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
-            }
-        }
-    }
-
-    const now = Date.now();
-    const findplayer = await playerinformation.findOne({ where: { playerid: message.author.id } });
-    if (findplayer != null) {
-        const lastCommandTime = findplayer.get('lastEnergyRegen');
-        if (lastCommandTime === null) {
-            findplayer.update({ lastEnergyRegen: now });
-        }
-        else {
-            const timeDiff = (now - lastCommandTime) / 1000;
-            if (timeDiff > 0.9) {
-                let newEnergy = Math.floor(findplayer.get('energy') + timeDiff);
-                if (newEnergy > 200) {
-                    newEnergy = 200;
-                }
-                findplayer.update({ energy: newEnergy });
+                console.log(error);
             }
         }
     }
