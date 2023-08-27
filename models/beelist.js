@@ -8,6 +8,7 @@ module.exports = (sequelize, DataTypes) => {
         beeName: {
             type: DataTypes.STRING,
         },
+        beeGrade: DataTypes.STRING,
         beeBaseTier: DataTypes.INTEGER,
         findType: DataTypes.STRING,
         beePrice: DataTypes.INTEGER,
