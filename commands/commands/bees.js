@@ -16,6 +16,10 @@ const playerinformation = sequelize.define('playerinformation', {
     },
     money: DataTypes.INTEGER,
     beeSlots: DataTypes.INTEGER,
+    energy: DataTypes.INTEGER,
+    lastEnergyRegen: DataTypes.INTEGER,
+    lastAdvClaim: DataTypes.INTEGER,
+    area: DataTypes.STRING,
 }, {
         timestamps: false,
     });
@@ -23,8 +27,10 @@ playerinformation.sync();
 
 const playerbees = sequelize.define('playerbees', {
     playerid: DataTypes.STRING,
+    IBI: DataTypes.INTEGER,
     beeid: DataTypes.INTEGER,
-    beeRarity: DataTypes.STRING,
+    beeLevel: DataTypes.INTEGER,
+    beeTier: DataTypes.INTEGER,
 }, {
         timestamps: false,
     });
@@ -39,7 +45,8 @@ const beelist = sequelize.define('beelist', {
     beeName: {
         type: DataTypes.STRING,
     },
-    beeBaseRarity: DataTypes.STRING,
+    beeGrade: DataTypes.STRING,
+    beeBaseTier: DataTypes.INTEGER,
     findType: DataTypes.STRING,
     beePrice: DataTypes.INTEGER,
 }, {
@@ -70,27 +77,27 @@ module.exports = {
         const requestplayer = interaction.options.getUser('user');
         if (requestplayer == undefined) {
             try {
-                const findPlayerBees = await playerbees.findAll({ where: { playerid: interaction.user.id } });
                 const findplayer = await playerinformation.findOne({ where: { playerid: interaction.user.id } });
-                const beeFields = [];
-                for (let count = 0; count < findPlayerBees.length; count++) {
-                    const nextBee = await beelist.findOne({ where: { beeid: findPlayerBees[count].dataValues.beeid } });
-                    beeFields.push({ name: capitaliseWords(nextBee.get('beeName')), value: capitaliseWords(findPlayerBees[count].dataValues.beeRarity), inline: true });
-                }
-                if (beeFields.length === 0) {
-                    beeFields.push({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
-                }
-                const beeembed = new EmbedBuilder()
-                    .setColor(0xffe521)
-                    .setAuthor({ name: `${interaction.user.username}'s profile`, iconURL: interaction.user.displayAvatarURL() })
-                    .setFooter({ text: beeFact() })
-                    .addFields(
-                        { name: 'Bees', value: `These are all your bees. They will do various things for you, and are very useful to you. \n\nBee slots: ${await playerbees.count({ where: { playerid: interaction.user.id } })}/${findplayer.get('beeSlots')}` },
-                    );
-                for (let count = 0; count < beeFields.length; count++) {
-                    beeembed.addFields(beeFields[count]);
-                }
-                interaction.reply({ embeds: [beeembed] });
+                const findPlayerBees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
+                    const beeFields = [];
+                    for (let count = 0; count < findPlayerBees.length; count++) {
+                        const nextBee = await beelist.findOne({ where: { beeid: findPlayerBees[count].dataValues.beeid } });
+                        beeFields.push({ name: `\`IBI: ${findPlayerBees[count].dataValues.IBI}\` ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${findPlayerBees[count].dataValues.beeTier} \nLevel: ${findPlayerBees[count].dataValues.beeLevel}`, inline: true });
+                    }
+                    if (beeFields.length === 0) {
+                        beeFields.push({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
+                    }
+                    const beeembed = new EmbedBuilder()
+                        .setColor(0xffe521)
+                        .setAuthor({ name: `${interaction.user.username}'s bees`, iconURL: interaction.user.displayAvatarURL() })
+                        .setFooter({ text: beeFact() })
+                        .addFields(
+                            { name: 'Bees', value: `These are all your bees. They will do various things for you, and are very useful to you. \nIBI stands for Individual Bee Identifier and should be used when selling or doing other actions on specific bees. \n\nBee slots: ${await playerbees.count({ where: { playerid: interaction.user.id } })}/${findplayer.get('beeSlots')}` },
+                        );
+                    for (let count = 0; count < beeFields.length; count++) {
+                        beeembed.addFields(beeFields[count]);
+                    }
+                    await interaction.reiply({ embeds: [beeembed] });
             }
             catch (error) {
                 if (error.name === 'TypeError') {
@@ -103,27 +110,27 @@ module.exports = {
         }
         else {
             try {
-                const findPlayerBees = await playerbees.findAll({ where: { playerid: requestplayer.id } });
+                const findPlayerBees = await playerbees.findAll({ where: { playerid: requestplayer.id }, order: sequelize.literal('IBI ASC') });
                 const findplayer = await playerinformation.findOne({ where: { playerid: requestplayer.id } });
-                    const beeFields = [];
-                    for (let count = 0; count < findPlayerBees.length; count++) {
-                        const nextBee = await beelist.findOne({ where: { beeid: findPlayerBees[count].dataValues.beeid } });
-                        beeFields.push({ name: capitaliseWords(nextBee.get('beeName')), value: capitaliseWords(findPlayerBees[count].dataValues.beeRarity), inline: true });
-                    }
-                    if (beeFields.length === 0) {
-                        beeFields.push({ name: '\u200b', value: 'This person has no bees :(' });
-                    }
-                    const beeembed = new EmbedBuilder()
-                        .setColor(0xffe521)
-                        .setAuthor({ name: `${requestplayer.username}'s profile`, iconURL: requestplayer.displayAvatarURL() })
-                        .setFooter({ text: beeFact() })
-                        .addFields(
-                            { name: 'Bees', value: `These are all of this person's bees. They will do various things for you, and are very useful to you. \n\nBee slots: ${await playerbees.count({ where: { playerid: requestplayer.id } })}/${findplayer.get('beeSlots')}` },
-                        );
-                    for (let count = 0; count < beeFields.length; count++) {
-                        beeembed.addFields(beeFields[count]);
-                    }
-                    interaction.reply({ embeds: [beeembed] });
+                const beeFields = [];
+                for (let count = 0; count < findPlayerBees.length; count++) {
+                    const nextBee = await beelist.findOne({ where: { beeid: findPlayerBees[count].dataValues.beeid } });
+                    beeFields.push({ name: `\`IBI: ${findPlayerBees[count].dataValues.IBI}\` ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${findPlayerBees[count].dataValues.beeTier} \nLevel: ${findPlayerBees[count].dataValues.beeLevel}`, inline: true });
+                }
+                if (beeFields.length === 0) {
+                    beeFields.push({ name: '\u200b', value: 'This person has no bees :(' });
+                }
+                const beeembed = new EmbedBuilder()
+                    .setColor(0xffe521)
+                    .setAuthor({ name: `${requestplayer.username}'s bees`, iconURL: requestplayer.displayAvatarURL() })
+                    .setFooter({ text: beeFact() })
+                    .addFields(
+                        { name: 'Bees', value: `These are all this person's bees. They will do various things for you, and are very useful to you. \nIBI stands for Individual Bee Identifier and should be used when selling or doing other actions on specific bees. \n\nBee slots: ${await playerbees.count({ where: { playerid: findplayer.id } })}/${findplayer.get('beeSlots')}` },
+                    );
+                for (let count = 0; count < beeFields.length; count++) {
+                    beeembed.addFields(beeFields[count]);
+                }
+                interaction.reply({ embeds: [beeembed] });
             }
             catch (error) {
                 if (error.name === 'TypeError') {

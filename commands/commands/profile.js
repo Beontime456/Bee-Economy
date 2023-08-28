@@ -16,6 +16,10 @@ const playerinformation = sequelize.define('playerinformation', {
     },
     money: DataTypes.INTEGER,
     beeSlots: DataTypes.INTEGER,
+    energy: DataTypes.INTEGER,
+    lastEnergyRegen: DataTypes.INTEGER,
+    lastAdvClaim: DataTypes.INTEGER,
+    area: DataTypes.STRING,
 }, {
         timestamps: false,
     });
@@ -38,6 +42,9 @@ module.exports = {
             const randomFact = Math.floor(Math.random() * 21);
             return beeFacts[randomFact];
         }
+        function capitaliseWords(sentence) {
+            return sentence.replace(/\b\w/g, char => char.toUpperCase());
+        }
         const requestplayer = interaction.options.getUser('user');
         if (requestplayer == undefined) {
             try {
@@ -50,7 +57,9 @@ module.exports = {
                 .addFields(
                     { name: 'Stats', value:
                     `\nMoney :moneybag:: ${findplayer.get('money')}` +
-                    `\nBee Slots :bee:: ${findplayer.get('beeSlots')}`,
+                    `\nBee Slots :bee:: ${findplayer.get('beeSlots')}` +
+                    `\nArea :evergreen_tree:: ${capitaliseWords(findplayer.get('area'))}` +
+                    `\nEnergy :zap:: ${findplayer.get('energy')}`,
                 });
                 interaction.reply({ embeds: [profileembed] });
             }
@@ -65,7 +74,7 @@ module.exports = {
         }
         else {
             try {
-                const findplayer = await playerinformation.findOne({ where: { playerid: requestplayer.id } });
+                const findTarget = await playerinformation.findOne({ where: { playerid: requestplayer.id } });
                 const profileembed = new EmbedBuilder()
                     .setColor(0xffe521)
                     .setAuthor({ name: `${requestplayer.username}'s profile`, iconURL: requestplayer.displayAvatarURL() })
@@ -73,9 +82,11 @@ module.exports = {
                     .setThumbnail(requestplayer.displayAvatarURL())
                     .addFields(
                         { name: 'Stats', value:
-                        `\nMoney :moneybag:: ${findplayer.get('money')}` +
-                        `\nBee Slots :bee:: ${findplayer.get('beeSlots')}`,
-                });
+                        `\nMoney :moneybag:: ${findTarget.get('money')}` +
+                        `\nBee Slots :bee:: ${findTarget.get('beeSlots')}` +
+                        `\nArea :evergreen_tree:: ${capitaliseWords(findTarget.get('area'))}` +
+                        `\nEnergy :zap:: ${findTarget.get('energy')}`,
+                    });
                 interaction.reply({ embeds: [profileembed] });
             }
             catch (error) {

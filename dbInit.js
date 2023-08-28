@@ -30,9 +30,9 @@ sequelize.sync({ force }).then(async () => {
         beeList.upsert({ beeName: 'very good backyard bee', beeBaseTier: 4, findType: 'backyard', beePrice: 0, beeGrade: 'S' }),
     ];
     const items = [
-        itemList.upsert({ itemName: 'flower petal', sellPrice: 100, findType: 'backyard' }),
-        itemList.upsert({ itemName: 'clash royale king', sellPrice: 1, findType: 'shop' }),
-        itemList.upsert({ itemName: 'ancient shard', sellPrice: 10000, findType: 'shop' }),
+        itemList.upsert({ itemName: 'flower petal', sellPrice: 100, findType: 'backyard', findChance: 75 }),
+        itemList.upsert({ itemName: 'clash royale king', sellPrice: 1, findType: 'shop', findChance: 0 }),
+        itemList.upsert({ itemName: 'ancient shard', sellPrice: 10000, findType: 'shop', findChance: 0 }),
     ];
     const areas = [
         areaList.upsert({ areaName: 'backyard' }),

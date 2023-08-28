@@ -8,6 +8,7 @@ module.exports = (sequelize, DataTypes) => {
         beeSlots: DataTypes.INTEGER,
         energy: DataTypes.INTEGER,
         lastEnergyRegen: DataTypes.INTEGER,
+        lastAdvClaim: DataTypes.INTEGER,
         area: DataTypes.STRING,
     }, {
             timestamps: false,

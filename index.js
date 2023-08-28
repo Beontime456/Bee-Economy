@@ -51,6 +51,7 @@ const playerinformation = sequelize.define('playerinformation', {
     beeSlots: DataTypes.INTEGER,
     energy: DataTypes.INTEGER,
     lastEnergyRegen: DataTypes.INTEGER,
+    lastAdvClaim: DataTypes.INTEGER,
     area: DataTypes.STRING,
 }, {
         timestamps: false,
@@ -95,11 +96,11 @@ const items = sequelize.define('items', {
     itemName: DataTypes.STRING,
     sellPrice: DataTypes.INTEGER,
     findType: DataTypes.STRING,
+    findChance: DataTypes.INTEGER,
 }, {
         timestamps: false,
     });
 items.sync();
-
 
 const inventory = sequelize.define('inventory', {
     playerid: {
@@ -152,6 +153,26 @@ client.once(Events.ClientReady, c => {
 });
 
 client.on(Events.InteractionCreate, async interaction => {
+    const now = Date.now;
+    const findplayer = await playerinformation.findOne({ where: { playerid: interaction.user.id } });
+
+    if (findplayer != null) {
+        const lastCommandTime = findplayer.get('lastEnergyRegen');
+        if (lastCommandTime === null) {
+            findplayer.update({ lastEnergyRegen: now });
+        }
+        else {
+            const timeDiff = (now - lastCommandTime) / 1000 / 60;
+            const energyGained = Math.floor(timeDiff / 5);
+            if (energyGained >= 1) {
+                let newEnergy = findplayer.get('energy') + energyGained;
+                if (newEnergy > 200) {
+                    newEnergy = 200;
+                }
+                findplayer.update({ energy: newEnergy, lastEnergyRegen: now });
+            }
+        }
+    }
     if (interaction.isAutocomplete()) {
         const command = interaction.client.commands.get(interaction.commandName);
 
@@ -190,26 +211,6 @@ client.on(Events.InteractionCreate, async interaction => {
             }
         }
     }
-
-    const now = Date.now;
-    const findplayer = await playerinformation.findOne({ where: { playerid: interaction.user.id } });
-
-    if (findplayer != null) {
-        const lastCommandTime = findplayer.get('lastEnergyRegen');
-        if (lastCommandTime === null) {
-            findplayer.update({ lastEnergyRegen: now });
-        }
-        else {
-            const timeDiff = (now - lastCommandTime) / 1000;
-            if (timeDiff >= 1) {
-                let newEnergy = findplayer.get('energy') + timeDiff;
-                if (newEnergy > 200) {
-                    newEnergy = 200;
-                }
-                findplayer.update({ energy: newEnergy });
-            }
-        }
-    }
 });
 
 // When the bot sees a message, it will analyse it for a prefix or if the sender is a bot.
@@ -228,9 +229,10 @@ client.on('messageCreate', async (message) => {
             findplayer.update({ lastEnergyRegen: now });
         }
         else {
-            const timeDiff = (now - lastCommandTime) / 1000;
-            if (timeDiff >= 1) {
-                let newEnergy = Math.floor(findplayer.get('energy') + timeDiff);
+            const timeDiff = (now - lastCommandTime) / 1000 / 60;
+            const energyGained = Math.floor(timeDiff / 5);
+            if (energyGained >= 1) {
+                let newEnergy = Math.floor(findplayer.get('energy') + energyGained);
                 if (newEnergy > 200) {
                     newEnergy = 200;
                 }
@@ -248,6 +250,7 @@ client.on('messageCreate', async (message) => {
                 beeSlots: 6,
                 energy: 200,
                 lastEnergyRegen: null,
+                lastAdvClaim: Date.now(),
                 area: 'backyard',
             });
             await message.channel.send('Congrats, you have now started!');
@@ -258,6 +261,7 @@ client.on('messageCreate', async (message) => {
                 }
             }
     }
+
     else if (command === 'help') {
         const helpembed = new EmbedBuilder()
             .setColor(0xffe521)
@@ -265,9 +269,10 @@ client.on('messageCreate', async (message) => {
             .setAuthor({ name: 'Help', iconURL: message.author.displayAvatarURL() })
             .addFields(
             { name: 'Help', value: 'Hello! If you are using this command chances are you\'re new here. If not, go down to find the available commands.' },
-            { name: 'Commands', value: '- start - Starts your adventure \n- profile - Displays your stats \n- bees - Shows the bees you own \n- shop - Shows the bee shop \n- buy - Lets you buy a bee or item from the bee shop \n- inventory - Lets you check all the items in your inventory' });
+            { name: 'Commands', value: '- start - Starts your adventure \n- profile - Displays your stats \n- bees - Shows the bees you own \n- shop - Shows the bee shop \n- buy - Lets you buy a bee or item from the bee shop \nsell - Sells an item or bee of your choice. To sell bees, use their IBI \n- inventory - Lets you check all the items in your inventory \n- find - Go looking for a bee in your current area. \n- claim - Claim anything found by your bees while they work.' });
         await message.channel.send({ embeds: [helpembed] });
     }
+
     // Profile
     else if (command === 'profile' || command === 'p' || command === 'pr') {
         if (!args[0]) {
@@ -288,7 +293,7 @@ client.on('messageCreate', async (message) => {
             }
             catch (error) {
                 if (error.name === 'TypeError') {
-                    await message.channel.send('You need to start! Type bee start in order to start!');
+                    await message.channel.send('You need to start! Type `bee start` in order to start!');
                 }
                 else {
                     await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
@@ -329,6 +334,7 @@ client.on('messageCreate', async (message) => {
             }
         }
     }
+
     // Bees
     else if (command === 'bees') {
             if (!args[0]) {
@@ -356,7 +362,7 @@ client.on('messageCreate', async (message) => {
                 }
                 catch (error) {
                     if (error.name === 'TypeError') {
-                        await message.channel.send('You haven\'t started yet! Use bee start to start!');
+                        await message.channel.send('You haven\'t started yet! Use `bee start` to start!');
                     }
                     else {
                         await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
@@ -404,6 +410,7 @@ client.on('messageCreate', async (message) => {
                 }
             }
     }
+
     // Shop
     else if (command === 'shop') {
         try {
@@ -432,6 +439,7 @@ client.on('messageCreate', async (message) => {
             console.log(error);
         }
     }
+
     // Buy
     else if (command === 'buy') {
         try {
@@ -523,6 +531,8 @@ client.on('messageCreate', async (message) => {
             console.log(error);
         }
     }
+
+    // Sell
     else if (command === 'sell') {
         try {
             if (findplayer) {
@@ -580,7 +590,7 @@ client.on('messageCreate', async (message) => {
                 }
             }
             else {
-                await message.channel.send('You have not started yet. Use bee start to start.');
+                await message.channel.send('You have not started yet. Use `bee start` to start.');
             }
         }
         catch (error) {
@@ -588,6 +598,7 @@ client.on('messageCreate', async (message) => {
             console.log(error);
         }
     }
+
     // Inventory
     else if (command === 'inventory' || command === 'i') {
         if (!args[0]) {
@@ -641,6 +652,7 @@ client.on('messageCreate', async (message) => {
             }
         }
     }
+
     // Find
     else if (command === 'find') {
         try {
@@ -652,7 +664,7 @@ client.on('messageCreate', async (message) => {
                     const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
                     const findembed = new EmbedBuilder()
                         .setColor(0xffe521)
-                        .setAuthor({ name: `${message.author.username}'s exploration results`, iconURL: message.author.displayAvatarURL() })
+                        .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
                         .setFooter({ text: beeFact() })
                         .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
                     await message.channel.send({ embeds: [findembed] });
@@ -680,7 +692,7 @@ client.on('messageCreate', async (message) => {
                     const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
                     const findembed = new EmbedBuilder()
                         .setColor(0xffe521)
-                        .setAuthor({ name: `${message.author.username}'s exploration results`, iconURL: message.author.displayAvatarURL() })
+                        .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
                         .setFooter({ text: beeFact() })
                         .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
                     await message.channel.send({ embeds: [findembed] });
@@ -708,7 +720,7 @@ client.on('messageCreate', async (message) => {
                     const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
                     const findembed = new EmbedBuilder()
                         .setColor(0xffe521)
-                        .setAuthor({ name: `${message.author.username}'s exploration results`, iconURL: message.author.displayAvatarURL() })
+                        .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
                         .setFooter({ text: beeFact() })
                         .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
                     await message.channel.send({ embeds: [findembed] });
@@ -736,7 +748,7 @@ client.on('messageCreate', async (message) => {
                     const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
                     const findembed = new EmbedBuilder()
                         .setColor(0xffe521)
-                        .setAuthor({ name: `${message.author.username}'s exploration results`, iconURL: message.author.displayAvatarURL() })
+                        .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
                         .setFooter({ text: beeFact() })
                         .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
                     await message.channel.send({ embeds: [findembed] });
@@ -764,7 +776,7 @@ client.on('messageCreate', async (message) => {
                     const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
                     const findembed = new EmbedBuilder()
                         .setColor(0xffe521)
-                        .setAuthor({ name: `${message.author.username}'s exploration results`, iconURL: message.author.displayAvatarURL() })
+                        .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
                         .setFooter({ text: beeFact() })
                         .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
                     await message.channel.send({ embeds: [findembed] });
@@ -792,7 +804,7 @@ client.on('messageCreate', async (message) => {
                     const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
                     const findembed = new EmbedBuilder()
                         .setColor(0xffe521)
-                        .setAuthor({ name: `${message.author.username}'s exploration results`, iconURL: message.author.displayAvatarURL() })
+                        .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
                         .setFooter({ text: beeFact() })
                         .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
                     await message.channel.send({ embeds: [findembed] });
@@ -820,7 +832,7 @@ client.on('messageCreate', async (message) => {
                     const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
                     const findembed = new EmbedBuilder()
                         .setColor(0xffe521)
-                        .setAuthor({ name: `${message.author.username}'s exploration results`, iconURL: message.author.displayAvatarURL() })
+                        .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
                         .setFooter({ text: beeFact() })
                         .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
                     await message.channel.send({ embeds: [findembed] });
@@ -843,7 +855,7 @@ client.on('messageCreate', async (message) => {
                         beeTier: beeFound.get('beeBaseTier'),
                     });
                 }
-                await findplayer.update({ energy: findplayer.get('energy') - 50 });
+                await findplayer.update({ energy: findplayer.get('energy') - 20 });
             }
             else {
                 await message.channel.send('You don\'t have enough bee slots for another bee! Get some more lmao');
@@ -851,12 +863,125 @@ client.on('messageCreate', async (message) => {
         }
         catch (error) {
             if (error.name === 'TypeError') {
-                await message.channel.send('You haven\'t started yet! Use bee start to start.');
+                await message.channel.send('You haven\'t started yet! Use `bee start` to start.');
             }
             else {
                 await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
                 console.log(error);
             }
+        }
+    }
+
+    // Claim
+    else if (command === 'claim') {
+        try {
+            const claimTime = Date.now();
+            const advTime = (claimTime - findplayer.get('lastAdvClaim')) / 1000 / 60;
+            const moneyGained = Math.floor(Math.random() * 101 * advTime);
+            const itemsAvailable = await items.findAll({ where: { findType: findplayer.get('area') } });
+            let itemsGained = 0;
+            let text = '';
+            text += `Money: ${moneyGained}`;
+            for (let count = 0; count < itemsAvailable.length; count++) {
+                for (let i = 0; i < advTime; i++) {
+                    if (Math.floor(Math.random() * itemsAvailable[count].dataValues.findChance) + 1 < itemsAvailable[count].dataValues.findChance) {
+                        itemsGained++;
+                    }
+                }
+                text += `\n${capitaliseWords(itemsAvailable[count].dataValues.itemName)}: ${itemsGained}`;
+                const findInvenItem = await inventory.findOne({ where: { itemid: itemsAvailable[count].dataValues.itemid } });
+                if (findInvenItem) {
+                    findInvenItem.update({ itemAmount: findInvenItem.get('itemAmount') + itemsGained });
+                }
+                else {
+                    await inventory.create({
+                        playerid: message.author.id,
+                        itemid: itemsAvailable[count].dataValues.itemid,
+                        itemAmount: itemsGained,
+                    });
+                }
+                itemsGained = 0;
+            }
+            const advembed = new EmbedBuilder()
+                .setColor(0xffe521)
+                .setAuthor({ name: `${message.author.username}'s adventuring results`, iconURL: message.author.displayAvatarURL() })
+                .setFooter({ text: beeFact() })
+                .addFields({ name: 'The bees are back!', value: `You lost 10 energy :zap: \nThe bees brought with them: \n\n${text}` });
+            await message.channel.send({ embeds: [advembed] });
+            findplayer.update({ money: findplayer.get('money') + moneyGained, lastAdvClaim: claimTime, energy: findplayer.get('energy') - 10 });
+        }
+        catch (error) {
+            if (error.name === 'TypeError') {
+                await message.channel.send('You haven\'t started yet! Use `bee start` to start.');
+            }
+            else {
+                await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                console.log(error);
+            }
+        }
+    }
+
+    // Master Commands - Tester Commands ONLY
+    else if (command === 'mc') {
+        try {
+            if (message.member.roles.cache.some(role => role.id === '1065889080556146748')) {
+                if (findplayer) {
+                    let lastArg = parseInt(args[args.length - 1]);
+                    if (typeof lastArg === 'number' && Number.isNaN(lastArg) != true) {
+                        args.pop();
+                    }
+                    else {
+                        lastArg = 1;
+                    }
+                    if (args[0] === 'refill') {
+                        await findplayer.update({ energy: 200 });
+                        await message.channel.send(':zap: Energy refilled!');
+                    }
+                    else if (args[0] === 'gift') {
+                        await findplayer.update({ money: findplayer.get('money') + lastArg });
+                        await message.channel.send(`You were given ${lastArg} money!`);
+                    }
+                    else if (args[0] === 'create') {
+                        args.splice(0, 1);
+                        const argsText = args.join(' ').toLowerCase();
+                        const findItem = await items.findOne({ where: { itemName: argsText } });
+                        const findPlayerInven = await inventory.findOne({ where: { playerid: message.author.id, itemid: findItem.get('itemid') } });
+                        if (findPlayerInven) {
+                            await findPlayerInven.update({ itemAmount: findPlayerInven.get('itemAmount') + lastArg });
+                        }
+                        else {
+                            await inventory.create({
+                                playerid: message.author.id,
+                                itemid: findItem.get('itemid'),
+                                itemAmount: lastArg,
+                            });
+                        }
+                        if (lastArg > 1) {
+                            await message.channel.send(`You created ${lastArg} ${capitaliseWords(findItem.get('itemName'))}s out of thin air!`);
+                        }
+                        else {
+                            await message.channel.send(`You created ${lastArg} ${capitaliseWords(findItem.get('itemName'))} out of thin air!`);
+                        }
+                    }
+                    else if (args[0] === 'warp') {
+                        const timeWarped = lastArg * 60 * 1000;
+                        await findplayer.update({ lastAdvClaim: findplayer.get('lastAdvClaim') - timeWarped });
+                        if (lastArg > 1) {
+                            await message.channel.send(`You warped time by ${lastArg} minutes!`);
+                        }
+                        else {
+                            await message.channel.send(`You warped time by ${lastArg} minute!`);
+                        }
+                    }
+                }
+                else {
+                    await message.channel.send('You haven\'t started yet! Use `bee start` to start.');
+                }
+            }
+        }
+        catch (error) {
+            await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+            console.log(error);
         }
     }
 });

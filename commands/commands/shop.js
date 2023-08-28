@@ -18,13 +18,29 @@ const beelist = sequelize.define('beelist', {
     beeName: {
         type: DataTypes.STRING,
     },
-    beeBaseRarity: DataTypes.STRING,
+    beeGrade: DataTypes.STRING,
+    beeBaseTier: DataTypes.INTEGER,
     findType: DataTypes.STRING,
     beePrice: DataTypes.INTEGER,
 }, {
         timestamps: false,
     });
 beelist.sync();
+
+const items = sequelize.define('items', {
+    itemid: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true,
+    },
+    itemName: DataTypes.STRING,
+    sellPrice: DataTypes.INTEGER,
+    findType: DataTypes.STRING,
+    findChance: DataTypes.INTEGER,
+}, {
+        timestamps: false,
+    });
+items.sync();
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -47,18 +63,24 @@ module.exports = {
         }
         try {
             let text = '';
-            const shopItems = await beelist.findAll({ where: { findType: 'shop' } });
+            const shopBees = await beelist.findAll({ where: { findType: 'shop' } });
+            for (let count = 0; count < shopBees.length; count++) {
+                const findItems = await beelist.findOne({ where: { beeid: shopBees[count].dataValues.beeid } });
+                text += capitaliseWords(findItems.get('beeName')) + ` (${findItems.get('beeGrade')})` + ':' + '  ' + findItems.get('beePrice') + '\n';
+            }
+            let text2 = '';
+            const shopItems = await items.findAll({ where: { findType: 'shop' } });
             for (let count = 0; count < shopItems.length; count++) {
-                const findItems = await beelist.findOne({ where: { beeid: shopItems[count].dataValues.beeid } });
-                text += capitaliseWords(findItems.get('beeName')) + ':' + '  ' + findItems.get('beePrice') + '\n';
+                const findItems = await items.findOne({ where: { itemid: shopItems[count].dataValues.itemid } });
+                text2 += capitaliseWords(findItems.get('itemName')) + ':' + '  ' + findItems.get('sellPrice') + '\n';
             }
             const shopembed = new EmbedBuilder()
             .setColor(0xffe521)
             .setTitle('The Bee Shop')
             .setFooter({ text: beeFact() })
-            .addFields({ name: '\u200b', value: 'Hello, welcome to the bee shop! Here you can buy bees that can work for you. These bees are really useful, so I think you should buy some.' + '\u200b' })
-            .addFields({ name: 'Bees', value: `\n\n${text}` });
-            interaction.reply({ embeds: [shopembed] });
+            .addFields({ name: '\u200b', value: 'Hello, welcome to the bee shop! Here you can buy bees that can work for you. These bees are really useful, so I think you should buy some. You can also buy items which may aid you.' + '\u200b' })
+            .addFields({ name: 'Bees', value: `\n\n${text}` }, { name: 'Items', value: `\n\n${text2}` });
+        await interaction.reply({ embeds: [shopembed] });
         }
         catch (error) {
             interaction.reply(`There was an error! ${error.name}: ${error.message}`);
