@@ -97,7 +97,7 @@ module.exports = {
                     for (let count = 0; count < beeFields.length; count++) {
                         beeembed.addFields(beeFields[count]);
                     }
-                    await interaction.reiply({ embeds: [beeembed] });
+                    await interaction.reply({ embeds: [beeembed] });
             }
             catch (error) {
                 if (error.name === 'TypeError') {
@@ -125,7 +125,7 @@ module.exports = {
                     .setAuthor({ name: `${requestplayer.username}'s bees`, iconURL: requestplayer.displayAvatarURL() })
                     .setFooter({ text: beeFact() })
                     .addFields(
-                        { name: 'Bees', value: `These are all this person's bees. They will do various things for you, and are very useful to you. \nIBI stands for Individual Bee Identifier and should be used when selling or doing other actions on specific bees. \n\nBee slots: ${await playerbees.count({ where: { playerid: findplayer.id } })}/${findplayer.get('beeSlots')}` },
+                        { name: 'Bees', value: `These are all this person's bees. They will do various things for you, and are very useful to you. \nIBI stands for Individual Bee Identifier and should be used when selling or doing other actions on specific bees. \n\nBee slots: ${await playerbees.count({ where: { playerid: requestplayer.id } })}/${findplayer.get('beeSlots')}` },
                     );
                 for (let count = 0; count < beeFields.length; count++) {
                     beeembed.addFields(beeFields[count]);
@@ -138,6 +138,7 @@ module.exports = {
                 }
                 else {
                     interaction.reply(`There was an error! ${error.name}: ${error.message}`);
+                    console.log(error);
                 }
             }
         }

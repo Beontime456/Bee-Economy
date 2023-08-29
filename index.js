@@ -1,7 +1,7 @@
 // Require the necessary classes for the bot to function
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, Events, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const { Client, Collection, Events, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { token } = require('./config.json');
 const { Sequelize, DataTypes } = require('sequelize');
 
@@ -340,25 +340,64 @@ client.on('messageCreate', async (message) => {
             if (!args[0]) {
                 try {
                     const findPlayerBees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
+                    let pages = Math.ceil(findPlayerBees.length / 6);
+                    if (pages === 0) {
+                        pages = 1;
+                    }
+                    const embeds = [];
                     const beeFields = [];
-                    for (let count = 0; count < findPlayerBees.length; count++) {
-                        const nextBee = await beelist.findOne({ where: { beeid: findPlayerBees[count].dataValues.beeid } });
-                        beeFields.push({ name: `\`IBI: ${findPlayerBees[count].dataValues.IBI}\` ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${findPlayerBees[count].dataValues.beeTier} \nLevel: ${findPlayerBees[count].dataValues.beeLevel}`, inline: true });
+                    for (let page = 0; page < pages; page++) {
+                        const startIndex = page * 6;
+                        const beesOnPage = findPlayerBees.slice(startIndex, startIndex + 6);
+                        for (let count = 0; count < beesOnPage.length; count++) {
+                            const nextBee = await beelist.findOne({ where: { beeid: findPlayerBees[count].dataValues.beeid } });
+                            beeFields.push({ name: `\`IBI: ${findPlayerBees[count].dataValues.IBI}\` ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${findPlayerBees[count].dataValues.beeTier} \nLevel: ${findPlayerBees[count].dataValues.beeLevel}`, inline: true });
+                        }
+                        if (beeFields.length === 0) {
+                            beeFields.push({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
+                        }
+                        const beeembed = new EmbedBuilder()
+                            .setColor(0xffe521)
+                            .setAuthor({ name: `${message.author.username}'s bees - Page ${page + 1}`, iconURL: message.author.displayAvatarURL() })
+                            .setFooter({ text: beeFact() })
+                            .addFields(
+                                { name: 'Bees', value: `These are all your bees. They will do various things for you, and are very useful to you. \nIBI stands for Individual Bee Identifier and should be used when selling or doing other actions on specific bees. \n\nBee slots: ${await playerbees.count({ where: { playerid: message.author.id } })}/${findplayer.get('beeSlots')}` },
+                            );
+                        for (let count = 0; count < beeFields.length; count++) {
+                            beeembed.addFields(beeFields[count]);
+                        }
+                        embeds.push(beeembed);
                     }
-                    if (beeFields.length === 0) {
-                        beeFields.push({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
+                    if (embeds.length > 1) {
+                        const row = new ActionRowBuilder()
+                        .addComponents([
+                            new ButtonBuilder()
+                                .setCustomId('prevPage')
+                                .setLabel('◀️')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId('nextPage')
+                                .setLabel('▶️')
+                                .setStyle(ButtonStyle.Secondary),
+                        ]);
+                        let currentPage = 0;
+                        const embedMessage = await message.channel.send({ embeds: [embeds[0]], components: [row] });
+                        const collector = message.channel.createMessageComponentCollector({ time: 90000 });
+                        collector.on('collect', async i => {
+                            if (message.author.id === findplayer.get('playerid')) {
+                                if (i.customId === 'prevPage') {
+                                    currentPage = (currentPage - 1 + embeds.length) % embeds.length;
+                                }
+                                else if (i.customId === 'nextPage') {
+                                    currentPage = (currentPage + 1) % embeds.length;
+                                }
+                                await embedMessage.edit({ embeds: [embeds[currentPage]], components: [row] });
+                            }
+                        });
                     }
-                    const beeembed = new EmbedBuilder()
-                        .setColor(0xffe521)
-                        .setAuthor({ name: `${message.author.username}'s bees`, iconURL: message.author.displayAvatarURL() })
-                        .setFooter({ text: beeFact() })
-                        .addFields(
-                            { name: 'Bees', value: `These are all your bees. They will do various things for you, and are very useful to you. \nIBI stands for Individual Bee Identifier and should be used when selling or doing other actions on specific bees. \n\nBee slots: ${await playerbees.count({ where: { playerid: message.author.id } })}/${findplayer.get('beeSlots')}` },
-                        );
-                    for (let count = 0; count < beeFields.length; count++) {
-                        beeembed.addFields(beeFields[count]);
+                    else {
+                        await message.channel.send({ embeds: [embeds[0]] });
                     }
-                    await message.channel.send({ embeds: [beeembed] });
                 }
                 catch (error) {
                     if (error.name === 'TypeError') {
