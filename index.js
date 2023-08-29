@@ -889,7 +889,7 @@ client.on('messageCreate', async (message) => {
                     }
                 }
                 text += `\n${capitaliseWords(itemsAvailable[count].dataValues.itemName)}: ${itemsGained}`;
-                const findInvenItem = await inventory.findOne({ where: { itemid: itemsAvailable[count].dataValues.itemid } });
+                const findInvenItem = await inventory.findOne({ where: { itemid: itemsAvailable[count].dataValues.itemid, playerid: message.author.id } });
                 if (findInvenItem) {
                     await findInvenItem.update({ itemAmount: findInvenItem.get('itemAmount') + itemsGained });
                 }
