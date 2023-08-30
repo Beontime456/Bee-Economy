@@ -56,10 +56,10 @@ module.exports = {
                 .setThumbnail(interaction.user.displayAvatarURL())
                 .addFields(
                     { name: 'Stats', value:
-                    `\nMoney :moneybag:: ${findplayer.get('money')}` +
-                    `\nBee Slots :bee:: ${findplayer.get('beeSlots')}` +
-                    `\nArea :evergreen_tree:: ${capitaliseWords(findplayer.get('area'))}` +
-                    `\nEnergy :zap:: ${findplayer.get('energy')}`,
+                    `\nMoney: ${findplayer.get('money')}` +
+                    `\nBee Slots: ${findplayer.get('beeSlots')}` +
+                    `\nArea: ${capitaliseWords(findplayer.get('area'))}` +
+                    `\nEnergy: ${findplayer.get('energy')}`,
                 });
                 interaction.reply({ embeds: [profileembed] });
             }
@@ -82,10 +82,10 @@ module.exports = {
                     .setThumbnail(requestplayer.displayAvatarURL())
                     .addFields(
                         { name: 'Stats', value:
-                        `\nMoney :moneybag:: ${findTarget.get('money')}` +
-                        `\nBee Slots :bee:: ${findTarget.get('beeSlots')}` +
-                        `\nArea :evergreen_tree:: ${capitaliseWords(findTarget.get('area'))}` +
-                        `\nEnergy :zap:: ${findTarget.get('energy')}`,
+                        `\nMoney: ${findTarget.get('money')}` +
+                        `\nBee Slots: ${findTarget.get('beeSlots')}` +
+                        `\nArea: ${capitaliseWords(findTarget.get('area'))}` +
+                        `\nEnergy: ${findTarget.get('energy')}`,
                     });
                 interaction.reply({ embeds: [profileembed] });
             }

@@ -73,40 +73,45 @@ module.exports = {
         }
         try {
             const findplayer = await playerinformation.findOne({ where: { playerid: interaction.user.id } });
-            const claimTime = Date.now();
-            const advTime = (claimTime - findplayer.get('lastAdvClaim')) / 1000 / 60;
-            const moneyGained = Math.floor(Math.random() * 101 * advTime);
-            const itemsAvailable = await items.findAll({ where: { findType: findplayer.get('area') } });
-            let itemsGained = 0;
-            let text = '';
-            text += `Money: ${moneyGained}`;
-            for (let count = 0; count < itemsAvailable.length; count++) {
-                for (let i = 0; i < advTime; i++) {
-                    if (Math.floor(Math.random() * itemsAvailable[count].dataValues.findChance) + 1 < itemsAvailable[count].dataValues.findChance) {
-                        itemsGained++;
+            if (findplayer.get('energy') - 10 >= 0) {
+                const claimTime = Date.now();
+                const advTime = (claimTime - findplayer.get('lastAdvClaim')) / 1000 / 60;
+                const moneyGained = Math.floor(Math.random() * 101 * advTime);
+                const itemsAvailable = await items.findAll({ where: { findType: findplayer.get('area') } });
+                let itemsGained = 0;
+                let text = '';
+                text += `Money: ${moneyGained}`;
+                for (let count = 0; count < itemsAvailable.length; count++) {
+                    for (let i = 0; i < advTime; i++) {
+                        if (Math.floor(Math.random() * itemsAvailable[count].dataValues.findChance) + 1 < itemsAvailable[count].dataValues.findChance) {
+                            itemsGained++;
+                        }
                     }
+                    text += `\n${capitaliseWords(itemsAvailable[count].dataValues.itemName)}: ${itemsGained}`;
+                    const findInvenItem = await inventory.findOne({ where: { itemid: itemsAvailable[count].dataValues.itemid, playerid: interaction.user.id } });
+                    if (findInvenItem) {
+                        findInvenItem.update({ itemAmount: findInvenItem.get('itemAmount') + itemsGained });
+                    }
+                    else {
+                        await inventory.create({
+                            playerid: interaction.user.id,
+                            itemid: itemsAvailable[count].dataValues.itemid,
+                            itemAmount: itemsGained,
+                        });
+                    }
+                    itemsGained = 0;
                 }
-                text += `\n${capitaliseWords(itemsAvailable[count].dataValues.itemName)}: ${itemsGained}`;
-                const findInvenItem = await inventory.findOne({ where: { itemid: itemsAvailable[count].dataValues.itemid, playerid: interaction.user.id } });
-                if (findInvenItem) {
-                    findInvenItem.update({ itemAmount: findInvenItem.get('itemAmount') + itemsGained });
-                }
-                else {
-                    await inventory.create({
-                        playerid: interaction.user.id,
-                        itemid: itemsAvailable[count].dataValues.itemid,
-                        itemAmount: itemsGained,
-                    });
-                }
-                itemsGained = 0;
+                const advembed = new EmbedBuilder()
+                    .setColor(0xffe521)
+                    .setAuthor({ name: `${interaction.user.username}'s adventuring results`, iconURL: interaction.user.displayAvatarURL() })
+                    .setFooter({ text: beeFact() })
+                    .addFields({ name: 'The bees are back!', value: `You lost 10 energy :zap: \nThe bees brought with them: \n\n${text}` });
+                interaction.reply({ embeds: [advembed] });
+                findplayer.update({ money: findplayer.get('money') + moneyGained, lastAdvClaim: claimTime, energy: findplayer.get('energy') - 10 });
             }
-            const advembed = new EmbedBuilder()
-                .setColor(0xffe521)
-                .setAuthor({ name: `${interaction.user.username}'s adventuring results`, iconURL: interaction.user.displayAvatarURL() })
-                .setFooter({ text: beeFact() })
-                .addFields({ name: 'The bees are back!', value: `You lost 10 energy :zap: \nThe bees brought with them: \n\n${text}` });
-            interaction.reply({ embeds: [advembed] });
-            findplayer.update({ money: findplayer.get('money') + moneyGained, lastAdvClaim: claimTime, energy: findplayer.get('energy') - 10 });
+            else {
+                interaction.reply('You do not have enough energy for this! Try resting for a bit then try again.');
+            }
         }
         catch (error) {
             if (error.name === 'TypeError') {

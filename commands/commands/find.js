@@ -74,208 +74,213 @@ module.exports = {
         }
         try {
             const findplayerBeeSlots = await playerinformation.findOne({ where: { playerid: interaction.user.id } });
-            if (findplayerBeeSlots.get('beeSlots') >= await playerbees.count({ where: { playerid: interaction.user.id } }) + 1) {
-                const gradeNumber = Math.floor(Math.random() * 101);
-                if (gradeNumber <= 15) {
-                    const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'F' } });
-                    const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                    const findembed = new EmbedBuilder()
-                        .setColor(0xffe521)
-                        .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
-                        .setFooter({ text: beeFact() })
-                        .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                    interaction.reply({ embeds: [findembed] });
-                    const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
-                    let nextIBI = 0;
-                    if (findplayerBeeSlotsbees.length > 0) {
-                        let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
-                        while (nextIBI === currentIBI) {
-                            nextIBI++;
-                            if (findplayerBeeSlotsbees[nextIBI] != undefined) {
-                                currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+            if (findplayerBeeSlots.get('energy') - 20 >= 0) {
+                if (findplayerBeeSlots.get('beeSlots') >= await playerbees.count({ where: { playerid: interaction.user.id } }) + 1) {
+                    const gradeNumber = Math.floor(Math.random() * 101);
+                    if (gradeNumber <= 15) {
+                        const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'F' } });
+                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
+                        const findembed = new EmbedBuilder()
+                            .setColor(0xffe521)
+                            .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
+                            .setFooter({ text: beeFact() })
+                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
+                        interaction.reply({ embeds: [findembed] });
+                        const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
+                        let nextIBI = 0;
+                        if (findplayerBeeSlotsbees.length > 0) {
+                            let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                            while (nextIBI === currentIBI) {
+                                nextIBI++;
+                                if (findplayerBeeSlotsbees[nextIBI] != undefined) {
+                                    currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                                }
                             }
                         }
+                        await playerbees.create({
+                            playerid: interaction.user.id,
+                            IBI: nextIBI,
+                            beeid: beeFound.get('beeid'),
+                            beeLevel: 1,
+                            beeTier: beeFound.get('beeBaseTier'),
+                        });
                     }
-                    await playerbees.create({
-                        playerid: interaction.user.id,
-                        IBI: nextIBI,
-                        beeid: beeFound.get('beeid'),
-                        beeLevel: 1,
-                        beeTier: beeFound.get('beeBaseTier'),
-                    });
-                }
-                else if (gradeNumber > 15 && gradeNumber <= 45) {
-                    const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'E' } });
-                    const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                    const findembed = new EmbedBuilder()
-                        .setColor(0xffe521)
-                        .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
-                        .setFooter({ text: beeFact() })
-                        .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                    interaction.reply({ embeds: [findembed] });
-                    const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
-                    let nextIBI = 0;
-                    if (findplayerBeeSlotsbees.length > 0) {
-                        let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
-                        while (nextIBI === currentIBI) {
-                            nextIBI++;
-                            if (findplayerBeeSlotsbees[nextIBI] != undefined) {
-                                currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                    else if (gradeNumber > 15 && gradeNumber <= 45) {
+                        const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'E' } });
+                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
+                        const findembed = new EmbedBuilder()
+                            .setColor(0xffe521)
+                            .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
+                            .setFooter({ text: beeFact() })
+                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
+                        interaction.reply({ embeds: [findembed] });
+                        const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
+                        let nextIBI = 0;
+                        if (findplayerBeeSlotsbees.length > 0) {
+                            let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                            while (nextIBI === currentIBI) {
+                                nextIBI++;
+                                if (findplayerBeeSlotsbees[nextIBI] != undefined) {
+                                    currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                                }
                             }
                         }
+                        await playerbees.create({
+                            playerid: interaction.user.id,
+                            IBI: nextIBI,
+                            beeid: beeFound.get('beeid'),
+                            beeLevel: 1,
+                            beeTier: beeFound.get('beeBaseTier'),
+                        });
                     }
-                    await playerbees.create({
-                        playerid: interaction.user.id,
-                        IBI: nextIBI,
-                        beeid: beeFound.get('beeid'),
-                        beeLevel: 1,
-                        beeTier: beeFound.get('beeBaseTier'),
-                    });
-                }
-                else if (gradeNumber > 45 && gradeNumber <= 70) {
-                    const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'D' } });
-                    const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                    const findembed = new EmbedBuilder()
-                        .setColor(0xffe521)
-                        .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
-                        .setFooter({ text: beeFact() })
-                        .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                    interaction.reply({ embeds: [findembed] });
-                    const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
-                    let nextIBI = 0;
-                    if (findplayerBeeSlotsbees.length > 0) {
-                        let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
-                        while (nextIBI === currentIBI) {
-                            nextIBI++;
-                            if (findplayerBeeSlotsbees[nextIBI] != undefined) {
-                                currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                    else if (gradeNumber > 45 && gradeNumber <= 70) {
+                        const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'D' } });
+                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
+                        const findembed = new EmbedBuilder()
+                            .setColor(0xffe521)
+                            .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
+                            .setFooter({ text: beeFact() })
+                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
+                        interaction.reply({ embeds: [findembed] });
+                        const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
+                        let nextIBI = 0;
+                        if (findplayerBeeSlotsbees.length > 0) {
+                            let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                            while (nextIBI === currentIBI) {
+                                nextIBI++;
+                                if (findplayerBeeSlotsbees[nextIBI] != undefined) {
+                                    currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                                }
                             }
                         }
+                        await playerbees.create({
+                            playerid: interaction.user.id,
+                            IBI: nextIBI,
+                            beeid: beeFound.get('beeid'),
+                            beeLevel: 1,
+                            beeTier: beeFound.get('beeBaseTier'),
+                        });
                     }
-                    await playerbees.create({
-                        playerid: interaction.user.id,
-                        IBI: nextIBI,
-                        beeid: beeFound.get('beeid'),
-                        beeLevel: 1,
-                        beeTier: beeFound.get('beeBaseTier'),
-                    });
-                }
-                else if (gradeNumber > 70 && gradeNumber <= 85) {
-                    const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'C' } });
-                    const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                    const findembed = new EmbedBuilder()
-                        .setColor(0xffe521)
-                        .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
-                        .setFooter({ text: beeFact() })
-                        .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                    interaction.reply({ embeds: [findembed] });
-                    const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
-                    let nextIBI = 0;
-                    if (findplayerBeeSlotsbees.length > 0) {
-                        let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
-                        while (nextIBI === currentIBI) {
-                            nextIBI++;
-                            if (findplayerBeeSlotsbees[nextIBI] != undefined) {
-                                currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                    else if (gradeNumber > 70 && gradeNumber <= 85) {
+                        const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'C' } });
+                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
+                        const findembed = new EmbedBuilder()
+                            .setColor(0xffe521)
+                            .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
+                            .setFooter({ text: beeFact() })
+                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
+                        interaction.reply({ embeds: [findembed] });
+                        const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
+                        let nextIBI = 0;
+                        if (findplayerBeeSlotsbees.length > 0) {
+                            let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                            while (nextIBI === currentIBI) {
+                                nextIBI++;
+                                if (findplayerBeeSlotsbees[nextIBI] != undefined) {
+                                    currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                                }
                             }
                         }
+                        await playerbees.create({
+                            playerid: interaction.user.id,
+                            IBI: nextIBI,
+                            beeid: beeFound.get('beeid'),
+                            beeLevel: 1,
+                            beeTier: beeFound.get('beeBaseTier'),
+                        });
                     }
-                    await playerbees.create({
-                        playerid: interaction.user.id,
-                        IBI: nextIBI,
-                        beeid: beeFound.get('beeid'),
-                        beeLevel: 1,
-                        beeTier: beeFound.get('beeBaseTier'),
-                    });
-                }
-                else if (gradeNumber > 85 && gradeNumber <= 95) {
-                    const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'B' } });
-                    const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                    const findembed = new EmbedBuilder()
-                        .setColor(0xffe521)
-                        .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
-                        .setFooter({ text: beeFact() })
-                        .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                    interaction.reply({ embeds: [findembed] });
-                    const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
-                    let nextIBI = 0;
-                    if (findplayerBeeSlotsbees.length > 0) {
-                        let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
-                        while (nextIBI === currentIBI) {
-                            nextIBI++;
-                            if (findplayerBeeSlotsbees[nextIBI] != undefined) {
-                                currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                    else if (gradeNumber > 85 && gradeNumber <= 95) {
+                        const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'B' } });
+                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
+                        const findembed = new EmbedBuilder()
+                            .setColor(0xffe521)
+                            .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
+                            .setFooter({ text: beeFact() })
+                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
+                        interaction.reply({ embeds: [findembed] });
+                        const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
+                        let nextIBI = 0;
+                        if (findplayerBeeSlotsbees.length > 0) {
+                            let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                            while (nextIBI === currentIBI) {
+                                nextIBI++;
+                                if (findplayerBeeSlotsbees[nextIBI] != undefined) {
+                                    currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                                }
                             }
                         }
+                        await playerbees.create({
+                            playerid: interaction.user.id,
+                            IBI: nextIBI,
+                            beeid: beeFound.get('beeid'),
+                            beeLevel: 1,
+                            beeTier: beeFound.get('beeBaseTier'),
+                        });
                     }
-                    await playerbees.create({
-                        playerid: interaction.user.id,
-                        IBI: nextIBI,
-                        beeid: beeFound.get('beeid'),
-                        beeLevel: 1,
-                        beeTier: beeFound.get('beeBaseTier'),
-                    });
-                }
-                else if (gradeNumber > 95 && gradeNumber <= 99) {
-                    const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'A' } });
-                    const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                    const findembed = new EmbedBuilder()
-                        .setColor(0xffe521)
-                        .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
-                        .setFooter({ text: beeFact() })
-                        .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                    interaction.reply({ embeds: [findembed] });
-                    const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
-                    let nextIBI = 0;
-                    if (findplayerBeeSlotsbees.length > 0) {
-                        let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
-                        while (nextIBI === currentIBI) {
-                            nextIBI++;
-                            if (findplayerBeeSlotsbees[nextIBI] != undefined) {
-                                currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                    else if (gradeNumber > 95 && gradeNumber <= 99) {
+                        const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'A' } });
+                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
+                        const findembed = new EmbedBuilder()
+                            .setColor(0xffe521)
+                            .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
+                            .setFooter({ text: beeFact() })
+                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
+                        interaction.reply({ embeds: [findembed] });
+                        const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
+                        let nextIBI = 0;
+                        if (findplayerBeeSlotsbees.length > 0) {
+                            let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                            while (nextIBI === currentIBI) {
+                                nextIBI++;
+                                if (findplayerBeeSlotsbees[nextIBI] != undefined) {
+                                    currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                                }
                             }
                         }
+                        await playerbees.create({
+                            playerid: interaction.user.id,
+                            IBI: nextIBI,
+                            beeid: beeFound.get('beeid'),
+                            beeLevel: 1,
+                            beeTier: beeFound.get('beeBaseTier'),
+                        });
                     }
-                    await playerbees.create({
-                        playerid: interaction.user.id,
-                        IBI: nextIBI,
-                        beeid: beeFound.get('beeid'),
-                        beeLevel: 1,
-                        beeTier: beeFound.get('beeBaseTier'),
-                    });
-                }
-                else if (gradeNumber === 100) {
-                    const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'S' } });
-                    const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                    const findembed = new EmbedBuilder()
-                        .setColor(0xffe521)
-                        .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
-                        .setFooter({ text: beeFact() })
-                        .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                    interaction.reply({ embeds: [findembed] });
-                    const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
-                    let nextIBI = 0;
-                    if (findplayerBeeSlotsbees.length > 0) {
-                        let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
-                        while (nextIBI === currentIBI) {
-                            nextIBI++;
-                            if (findplayerBeeSlotsbees[nextIBI] != undefined) {
-                                currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                    else if (gradeNumber === 100) {
+                        const findableBees = await beelist.findAll({ where: { findType: findplayerBeeSlots.get('area'), beeGrade: 'S' } });
+                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
+                        const findembed = new EmbedBuilder()
+                            .setColor(0xffe521)
+                            .setAuthor({ name: `${interaction.user.username}'s exploration results (-20 energy)`, iconURL: interaction.user.displayAvatarURL() })
+                            .setFooter({ text: beeFact() })
+                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
+                        interaction.reply({ embeds: [findembed] });
+                        const findplayerBeeSlotsbees = await playerbees.findAll({ where: { playerid: interaction.user.id }, order: sequelize.literal('IBI ASC') });
+                        let nextIBI = 0;
+                        if (findplayerBeeSlotsbees.length > 0) {
+                            let currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                            while (nextIBI === currentIBI) {
+                                nextIBI++;
+                                if (findplayerBeeSlotsbees[nextIBI] != undefined) {
+                                    currentIBI = await findplayerBeeSlotsbees[nextIBI].dataValues.IBI;
+                                }
                             }
                         }
+                        await playerbees.create({
+                            playerid: interaction.user.id,
+                            IBI: nextIBI,
+                            beeid: beeFound.get('beeid'),
+                            beeLevel: 1,
+                            beeTier: beeFound.get('beeBaseTier'),
+                        });
                     }
-                    await playerbees.create({
-                        playerid: interaction.user.id,
-                        IBI: nextIBI,
-                        beeid: beeFound.get('beeid'),
-                        beeLevel: 1,
-                        beeTier: beeFound.get('beeBaseTier'),
-                    });
+                    await findplayerBeeSlots.update({ energy: findplayerBeeSlots.get('energy') - 20 });
                 }
-                await findplayerBeeSlots.update({ energy: findplayerBeeSlots.get('energy') - 20 });
+                else {
+                    interaction.reply('You don\'t have enough bee slots for another bee! Get some more lmao');
+                }
             }
             else {
-                interaction.reply('You don\'t have enough bee slots for another bee! Get some more lmao');
+                interaction.reply('You don\'t have enough energy to look for another bee! Try resting for a while then try again.');
             }
         }
         catch (error) {
