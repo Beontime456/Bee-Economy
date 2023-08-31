@@ -1055,52 +1055,54 @@ client.on('messageCreate', async (message) => {
         else {
             lastArg = 1;
         }
-        const findBee = await playerbees.findOne({ where: { IBI: chosenBee, playerid: message.author.id } });
-        if (findBee != undefined) {
-            const findBeeName = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
-            let totalMoney = 0;
-            for (let count = findBee.get('beeLevel'); count < findBee.get('beeLevel') + lastArg; count++) {
-                totalMoney += (500 * count) * 1.67;
-            }
-            if (lastArg > 1 && findplayer.get('money') >= totalMoney) {
-                const row = new ActionRowBuilder()
-                    .addComponents([
-                        new ButtonBuilder()
-                            .setCustomId('confirm')
-                            .setLabel('Yes')
-                            .setStyle(ButtonStyle.Success),
-                        new ButtonBuilder()
-                            .setCustomId('deny')
-                            .setLabel('No')
-                            .setStyle(ButtonStyle.Danger),
-                    ]);
-                const confirmembed = new EmbedBuilder()
-                    .setColor(0xffe521)
-                    .setFooter({ text: beeFact() })
-                    .addFields({ name: `Are you sure you want to train this bee ${lastArg} times?`, value: `Doing so will cost ${totalMoney} money` });
-                const confirmMessage = await message.channel.send({ embeds: [confirmembed], components: [row] });
-                const collectorFilter = i => i.user.id === message.author.id;
-                const collector = await message.channel.awaitMessageComponent({ filter: collectorFilter, time: 20000 });
-                if (collector.customId === 'confirm') {
-                    confirmMessage.edit({ content: `Trained your ${capitaliseWords(findBeeName.get('beeName'))} for ${totalMoney} money! Your ${capitaliseWords(findBeeName.get('beeName'))}'s level increased by ${lastArg}!`, embeds: [], components: [] });
+        if (typeof chosenBee === 'number' && Number.isNaN(chosenBee) != true) {
+            const findBee = await playerbees.findOne({ where: { IBI: chosenBee, playerid: message.author.id } });
+            if (findBee != undefined) {
+                const findBeeName = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
+                let totalMoney = 0;
+                for (let count = findBee.get('beeLevel'); count < findBee.get('beeLevel') + lastArg; count++) {
+                    totalMoney += (500 * count) * 1.67;
+                }
+                if (lastArg > 1 && findplayer.get('money') >= totalMoney) {
+                    const row = new ActionRowBuilder()
+                        .addComponents([
+                            new ButtonBuilder()
+                                .setCustomId('confirm')
+                                .setLabel('Yes')
+                                .setStyle(ButtonStyle.Success),
+                            new ButtonBuilder()
+                                .setCustomId('deny')
+                                .setLabel('No')
+                                .setStyle(ButtonStyle.Danger),
+                        ]);
+                    const confirmembed = new EmbedBuilder()
+                        .setColor(0xffe521)
+                        .setFooter({ text: beeFact() })
+                        .addFields({ name: `Are you sure you want to train this bee ${lastArg} times?`, value: `Doing so will cost ${totalMoney} money` });
+                    const confirmMessage = await message.channel.send({ embeds: [confirmembed], components: [row] });
+                    const collectorFilter = i => i.user.id === message.author.id;
+                    const collector = await message.channel.awaitMessageComponent({ filter: collectorFilter, time: 20000 });
+                    if (collector.customId === 'confirm') {
+                        confirmMessage.edit({ content: `Trained your ${capitaliseWords(findBeeName.get('beeName'))} for ${totalMoney} money! Your ${capitaliseWords(findBeeName.get('beeName'))}'s level increased by ${lastArg}!`, embeds: [], components: [] });
+                        await findplayer.update({ money: findplayer.get('money') - totalMoney });
+                        await findBee.update({ beeLevel: findBee.get('beeLevel') + lastArg });
+                    }
+                    if (collector.customId === 'deny') {
+                        confirmMessage.edit({ content: `You decided not to train your ${capitaliseWords(findBeeName.get('beeName'))}.`, embeds: [], components: [] });
+                    }
+                }
+                else if (lastArg === 1 && findplayer.get('money') >= totalMoney) {
+                    await message.channel.send(`Trained your ${capitaliseWords(findBeeName.get('beeName'))} for ${totalMoney} money! Your ${capitaliseWords(findBeeName.get('beeName'))}'s level increased by one!`);
                     await findplayer.update({ money: findplayer.get('money') - totalMoney });
-                    await findBee.update({ beeLevel: findBee.get('beeLevel') + lastArg });
+                    await findBee.update({ beeLevel: findBee.get('beeLevel') + 1 });
                 }
-                if (collector.customId === 'deny') {
-                    confirmMessage.edit({ content: `You decided not to train your ${capitaliseWords(findBeeName.get('beeName'))}.`, embeds: [], components: [] });
+                else {
+                    await message.channel.send('You don\'t have enough money for this lol');
                 }
-            }
-            else if (lastArg === 1 && findplayer.get('money') >= totalMoney) {
-                await message.channel.send(`Trained your ${capitaliseWords(findBeeName.get('beeName'))} for ${totalMoney} money! Your ${capitaliseWords(findBeeName.get('beeName'))}'s level increased by one!`);
-                await findplayer.update({ money: findplayer.get('money') - totalMoney });
-                await findBee.update({ beeLevel: findBee.get('beeLevel') + 1 });
             }
             else {
-                await message.channel.send('You don\'t have enough money for this lol');
+                await message.channel.send('This is not an IBI associated with a bee you own!');
             }
-        }
-        else {
-            await message.channel.send('This is not an IBI associated with a bee you own!');
         }
     }
 
