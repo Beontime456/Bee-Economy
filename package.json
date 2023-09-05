@@ -9,6 +9,8 @@
   "author": "Beontime/Idek",
   "license": "ISC",
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.44",
+    "csv-parser": "^3.0.0",
     "discord.js": "^14.12.1",
     "sequelize": "^6.32.1",
     "sqlite3": "^5.1.6"

@@ -5,6 +5,9 @@ module.exports = (sequelize, DataTypes) => {
         beeid: DataTypes.INTEGER,
         beeLevel: DataTypes.INTEGER,
         beeTier: DataTypes.INTEGER,
+        tierUpMod: DataTypes.INTEGER,
+        beePower: DataTypes.INTEGER,
+        beeHealth: DataTypes.INTEGER,
     }, {
             timestamps: false,
         });

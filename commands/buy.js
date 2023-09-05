@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { Sequelize, DataTypes } = require('sequelize');
+const { Sequelize } = require('sequelize');
 
 const sequelize = new Sequelize('database', 'user', 'password', {
 	host: 'localhost',
@@ -8,77 +8,15 @@ const sequelize = new Sequelize('database', 'user', 'password', {
 	storage: 'playerinfo.sqlite',
 });
 
-const playerinformation = sequelize.define('playerinformation', {
-    playerid: {
-        type: DataTypes.STRING,
-        primaryKey: true,
-    },
-    money: DataTypes.INTEGER,
-    beeSlots: DataTypes.INTEGER,
-    energy: DataTypes.INTEGER,
-    lastEnergyRegen: DataTypes.INTEGER,
-    lastAdvClaim: DataTypes.INTEGER,
-    area: DataTypes.STRING,
-}, {
-        timestamps: false,
-    });
+const beelist = require('C:/Bee Economy/models/beelist.js')(sequelize, Sequelize.DataTypes);
+const items = require('C:/Bee Economy/models/items.js')(sequelize, Sequelize.DataTypes);
+const inventory = require('C:/Bee Economy/models/inventory.js')(sequelize, Sequelize.DataTypes);
+const playerinformation = require('C:/Bee Economy/models/playerinformation.js')(sequelize, Sequelize.DataTypes);
+const playerbees = require('C:/Bee Economy/models/playerbees.js')(sequelize, Sequelize.DataTypes);
 playerinformation.sync();
-
-const playerbees = sequelize.define('playerbees', {
-    playerid: DataTypes.STRING,
-    IBI: DataTypes.INTEGER,
-    beeid: DataTypes.INTEGER,
-    beeLevel: DataTypes.INTEGER,
-    beeTier: DataTypes.INTEGER,
-}, {
-        timestamps: false,
-    });
 playerbees.sync();
-
-const beelist = sequelize.define('beelist', {
-    beeid: {
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true,
-    },
-    beeName: {
-        type: DataTypes.STRING,
-    },
-    beeGrade: DataTypes.STRING,
-    beeBaseTier: DataTypes.INTEGER,
-    findType: DataTypes.STRING,
-    beePrice: DataTypes.INTEGER,
-}, {
-        timestamps: false,
-    });
 beelist.sync();
-
-const items = sequelize.define('items', {
-    itemid: {
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true,
-    },
-    itemName: DataTypes.STRING,
-    sellPrice: DataTypes.INTEGER,
-    findType: DataTypes.STRING,
-    findChance: DataTypes.INTEGER,
-}, {
-        timestamps: false,
-    });
 items.sync();
-
-const inventory = sequelize.define('inventory', {
-    playerid: {
-        type: DataTypes.INTEGER,
-    },
-    itemid: {
-        type: DataTypes.INTEGER,
-    },
-    itemAmount: DataTypes.INTEGER,
-}, {
-        timestamps: false,
-    });
 inventory.sync();
 
 function capitaliseWords(sentence) {

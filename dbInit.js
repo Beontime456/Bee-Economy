@@ -18,29 +18,41 @@ const force = process.argv.includes('--force') || process.argv.includes('-f');
 
 sequelize.sync({ force }).then(async () => {
     const bees = [
-        beeList.upsert({ beeName: 'basic bee', beeBaseTier: 1, findType: 'shop', beePrice: 50, beeGrade: 'E' }),
-        beeList.upsert({ beeName: 'god bee', beeBaseTier: 1, findType: 'none', beePrice: 0, beeGrade: 'SS' }),
-        beeList.upsert({ beeName: 'test bee', beeBaseTier: 99, findType: 'shop', beePrice: 10000000, beeGrade: 'F' }),
-        beeList.upsert({ beeName: 'terrible backyard bee', beeBaseTier: 1, findType: 'backyard', beePrice: 0, beeGrade: 'F' }),
-        beeList.upsert({ beeName: 'less terrible backyard bee', beeBaseTier: 1, findType: 'backyard', beePrice: 0, beeGrade: 'E' }),
-        beeList.upsert({ beeName: 'mediocre backyard bee', beeBaseTier: 2, findType: 'backyard', beePrice: 0, beeGrade: 'D' }),
-        beeList.upsert({ beeName: 'okay backyard bee', beeBaseTier: 3, findType: 'backyard', beePrice: 0, beeGrade: 'C' }),
-        beeList.upsert({ beeName: 'pretty decent backyard bee', beeBaseTier: 3, findType: 'backyard', beePrice: 0, beeGrade: 'B' }),
-        beeList.upsert({ beeName: 'good backyard bee', beeBaseTier: 3, findType: 'backyard', beePrice: 0, beeGrade: 'A' }),
-        beeList.upsert({ beeName: 'very good backyard bee', beeBaseTier: 4, findType: 'backyard', beePrice: 0, beeGrade: 'S' }),
+        beeList.upsert({ beeName: 'basic bee', beeBaseTier: 1, findType: 'shop', beePrice: 100, beeGrade: 'E', beeBasePower: 15 }),
+        beeList.upsert({ beeName: 'god bee', beeBaseTier: 1, findType: 'none', beePrice: 0, beeGrade: 'SS', beeBasePower: 2000 }),
+        beeList.upsert({ beeName: 'furrow bee', beeBaseTier: 1, findType: 'backyard', beePrice: 400, beeGrade: 'E', beeBasePower: 20 }),
+        beeList.upsert({ beeName: 'hairy-footed flower bee', beeBaseTier: 1, findType: 'backyard', beePrice: 600, beeGrade: 'D', beeBasePower: 30 }),
+        beeList.upsert({ beeName: 'mason bee', beeBaseTier: 1, findType: 'backyard', beePrice: 750, beeGrade: 'C', beeBasePower: 40 }),
+        beeList.upsert({ beeName: 'barbeecue', beeBaseTier: 1, findType: 'backyard', beePrice: 1000, beeGrade: 'B', beeBasePower: 50 }),
     ];
     const items = [
-        itemList.upsert({ itemName: 'flower petal', sellPrice: 100, findType: 'backyard', findChance: 75 }),
+        itemList.upsert({ itemName: 'flower petal', sellPrice: 100, findType: 'backyard', findChance: 25 }),
         itemList.upsert({ itemName: 'clash royale king', sellPrice: 1, findType: 'shop', findChance: 0 }),
         itemList.upsert({ itemName: 'ancient shard', sellPrice: 10000, findType: 'shop', findChance: 0 }),
     ];
     const areas = [
         areaList.upsert({ areaName: 'backyard' }),
+        areaList.upsert({ areaName: 'pond' }),
+        areaList.upsert({ areaName: 'beach' }),
+        areaList.upsert({ areaName: 'farm' }),
+        areaList.upsert({ areaName: 'city' }),
+        areaList.upsert({ areaName: 'lake' }),
+        areaList.upsert({ areaName: 'river' }),
+        areaList.upsert({ areaName: 'swamp' }),
+        areaList.upsert({ areaName: 'village' }),
+        areaList.upsert({ areaName: 'valley' }),
+        areaList.upsert({ areaName: 'plain' }),
+        areaList.upsert({ areaName: 'desert' }),
+        areaList.upsert({ areaName: 'forest' }),
+        areaList.upsert({ areaName: 'ocean' }),
+        areaList.upsert({ areaName: 'island' }),
+        areaList.upsert({ areaName: 'badlands' }),
     ];
 
     await Promise.all(bees);
     await Promise.all(items);
     await Promise.all(areas);
+
     console.log('Database synced');
 
     sequelize.close();

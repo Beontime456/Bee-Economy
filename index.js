@@ -1,9 +1,11 @@
+/* eslint-disable no-prototype-builtins */
 // Require the necessary classes for the bot to function
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, Events, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, Collection, Events, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 const { token } = require('./config.json');
-const { Sequelize, DataTypes } = require('sequelize');
+const { Sequelize } = require('sequelize');
+const Canvas = require('@napi-rs/canvas');
 
 // Create a new client instance
 const client = new Client({ intents: [
@@ -14,23 +16,19 @@ const client = new Client({ intents: [
 
 client.commands = new Collection();
 
-const foldersPath = path.join(__dirname, 'commands');
-const commandFolders = fs.readdirSync(foldersPath);
+const commandsPath = path.join(__dirname, 'commands');
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-for (const folder of commandFolders) {
-	const commandsPath = path.join(foldersPath, folder);
-	const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-	for (const file of commandFiles) {
-		const filePath = path.join(commandsPath, file);
-		const command = require(filePath);
-		// Set a new item in the Collection with the key as the command name and the value as the exported module
-		if ('data' in command && 'execute' in command) {
-			client.commands.set(command.data.name, command);
-		}
-        else {
-			console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
-		}
-	}
+for (const file of commandFiles) {
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+    // Set a new item in the Collection with the key as the command name and the value as the exported module
+    if ('data' in command && 'execute' in command) {
+        client.commands.set(command.data.name, command);
+    }
+    else {
+        console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+    }
 }
 
 // Define the sequelize database for easy connection and access
@@ -42,95 +40,23 @@ const sequelize = new Sequelize('database', 'user', 'password', {
 });
 
 // Sync required tables for creation and access of data
-const playerinformation = sequelize.define('playerinformation', {
-    playerid: {
-        type: DataTypes.STRING,
-        primaryKey: true,
-    },
-    money: DataTypes.INTEGER,
-    beeSlots: DataTypes.INTEGER,
-    energy: DataTypes.INTEGER,
-    lastEnergyRegen: DataTypes.INTEGER,
-    lastAdvClaim: DataTypes.INTEGER,
-    area: DataTypes.STRING,
-}, {
-        timestamps: false,
-    });
+const beelist = require('./models/beelist.js')(sequelize, Sequelize.DataTypes);
+const items = require('./models/items.js')(sequelize, Sequelize.DataTypes);
+const area = require('./models/area.js')(sequelize, Sequelize.DataTypes);
+const inventory = require('./models/inventory.js')(sequelize, Sequelize.DataTypes);
+const playerinformation = require('./models/playerinformation.js')(sequelize, Sequelize.DataTypes);
+const playerbees = require('./models/playerbees.js')(sequelize, Sequelize.DataTypes);
 playerinformation.sync();
-
-const playerbees = sequelize.define('playerbees', {
-    playerid: DataTypes.STRING,
-    IBI: DataTypes.INTEGER,
-    beeid: DataTypes.INTEGER,
-    beeLevel: DataTypes.INTEGER,
-    beeTier: DataTypes.INTEGER,
-}, {
-        timestamps: false,
-    });
 playerbees.sync();
-
-const beelist = sequelize.define('beelist', {
-    beeid: {
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true,
-    },
-    beeName: {
-        type: DataTypes.STRING,
-    },
-    beeGrade: DataTypes.STRING,
-    beeBaseTier: DataTypes.INTEGER,
-    findType: DataTypes.STRING,
-    beePrice: DataTypes.INTEGER,
-}, {
-        timestamps: false,
-    });
 beelist.sync();
-
-const items = sequelize.define('items', {
-    itemid: {
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true,
-    },
-    itemName: DataTypes.STRING,
-    sellPrice: DataTypes.INTEGER,
-    findType: DataTypes.STRING,
-    findChance: DataTypes.INTEGER,
-}, {
-        timestamps: false,
-    });
 items.sync();
-
-const inventory = sequelize.define('inventory', {
-    playerid: {
-        type: DataTypes.INTEGER,
-    },
-    itemid: {
-        type: DataTypes.INTEGER,
-    },
-    itemAmount: DataTypes.INTEGER,
-}, {
-        timestamps: false,
-    });
 inventory.sync();
-
-const area = sequelize.define('area', {
-    areaid: {
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true,
-    },
-    areaName: DataTypes.STRING,
-}, {
-        timestamps: false,
-    });
 area.sync();
 
 // Initialise a prefix for the bot to see message commands
 const prefix = 'bee ';
 
-// Some basic universal functions to be used for several commands.
+// Some basic universal functions and variahbles to be used for several commands.
 function capitaliseWords(sentence) {
     return sentence.replace(/\b\w/g, char => char.toUpperCase());
 }
@@ -145,6 +71,28 @@ function beeFact() {
     const randomFact = Math.floor(Math.random() * 20);
     return beeFacts[randomFact];
 }
+async function findBeeCommand(beeGrade, beeArea) {
+    const findableBees = await beelist.findAll({ where: { findType: beeArea, beeGrade: beeGrade } });
+    return findableBees[Math.floor(Math.random() * findableBees.length)];
+}
+const gradeMultipliers = {
+    'F': 0.75,
+    'E': 0.85,
+    'D': 1,
+    'C': 1.1,
+    'B': 1.3,
+    'A': 1.5,
+    'S': 1.75,
+    'SS': 2,
+};
+const areaMap = {
+    1: [265, 135],
+    2: [205, 125],
+    3: [265, 235],
+    4: [285, 105],
+    5: [180, 50],
+};
+
 
 // When the client is ready, run this code (only once)
 // We use 'c' for the event parameter to keep it separate from the already defined 'client'
@@ -281,13 +229,13 @@ client.on('messageCreate', async (message) => {
                 const profileembed = new EmbedBuilder()
                 .setColor(0xffe521)
                 .setFooter({ text: beeFact() })
-                .setAuthor({ name: `${message.author.username}'s profile`, iconURL: message.author.displayAvatarURL() })
+                .setAuthor({ name: `${message.author.displayName}'s profile`, iconURL: message.author.displayAvatarURL() })
                 .setThumbnail(message.author.displayAvatarURL())
                 .addFields(
                     { name: 'Stats', value:
                     `\nMoney: ${findplayer.get('money')}` +
                     `\nBee Slots: ${findplayer.get('beeSlots')}` +
-                    `\nArea: ${capitaliseWords(findplayer.get('area'))}` +
+                    `\nHive: ${capitaliseWords(findplayer.get('area'))}` +
                     `\nEnergy: ${findplayer.get('energy')}`,
                 });
                 await message.channel.send({ embeds: [profileembed] });
@@ -309,14 +257,14 @@ client.on('messageCreate', async (message) => {
                 const findTarget = await playerinformation.findOne({ where: { playerid: mentionId } });
                 const profileembed = new EmbedBuilder()
                     .setColor(0xffe521)
-                    .setAuthor({ name: `${profileUser.username}'s profile`, iconURL: profileUser.displayAvatarURL() })
+                    .setAuthor({ name: `${profileUser.displayName}'s profile`, iconURL: profileUser.displayAvatarURL() })
                     .setFooter({ text: beeFact() })
                     .setThumbnail(profileUser.displayAvatarURL())
                     .addFields(
                         { name: 'Stats', value:
                         `\nMoney: ${findTarget.get('money')}` +
                         `\nBee Slots: ${findTarget.get('beeSlots')}` +
-                        `\nArea: ${capitaliseWords(findTarget.get('area'))}` +
+                        `\nHive: ${capitaliseWords(findTarget.get('area'))}` +
                         `\nEnergy: ${findTarget.get('energy')}`,
                     });
                 await message.channel.send({ embeds: [profileembed] });
@@ -352,14 +300,14 @@ client.on('messageCreate', async (message) => {
                         const beesOnPage = findPlayerBees.slice(startIndex, startIndex + 6);
                         const beeembed = new EmbedBuilder()
                             .setColor(0xffe521)
-                            .setAuthor({ name: `${message.author.username}'s bees - Page ${page + 1}`, iconURL: message.author.displayAvatarURL() })
+                            .setAuthor({ name: `${message.author.displayName}'s bees - Page ${page + 1}`, iconURL: message.author.displayAvatarURL() })
                             .setFooter({ text: beeFact() })
                             .addFields(
                                 { name: 'Bees', value: `These are all your bees. They will do various things for you, and are very useful to you. \nIBI stands for Individual Bee Identifier and should be used when selling or doing other actions on specific bees. \n\nBee slots: ${await playerbees.count({ where: { playerid: message.author.id } })}/${findplayer.get('beeSlots')}` },
                             );
                         for (let count = 0; count < beesOnPage.length; count++) {
                             const nextBee = await beelist.findOne({ where: { beeid: beesOnPage[count].dataValues.beeid } });
-                            beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1146241212169339030> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${beesOnPage[count].dataValues.beeTier} \nLevel: ${beesOnPage[count].dataValues.beeLevel}`, inline: true });
+                            beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1146241212169339030> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${beesOnPage[count].dataValues.beeTier}/10 \nLevel: ${beesOnPage[count].dataValues.beeLevel}/150 \nPower: ${beesOnPage[count].dataValues.beePower} \nHealth: ${beesOnPage[count].dataValues.beeHealth}`, inline: true });
                         }
                         if (beeFields.length === 0) {
                             beeembed.addFields({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
@@ -445,14 +393,14 @@ client.on('messageCreate', async (message) => {
                         const beesOnPage = findPlayerBees.slice(startIndex, startIndex + 6);
                         const beeembed = new EmbedBuilder()
                             .setColor(0xffe521)
-                            .setAuthor({ name: `${targetUser.username}'s bees - Page ${page + 1}`, iconURL: targetUser.displayAvatarURL() })
+                            .setAuthor({ name: `${targetUser.displayName}'s bees - Page ${page + 1}`, iconURL: targetUser.displayAvatarURL() })
                             .setFooter({ text: beeFact() })
                             .addFields(
                                 { name: 'Bees', value: `These are all your bees. They will do various things for you, and are very useful to you. \nIBI stands for Individual Bee Identifier and should be used when selling or doing other actions on specific bees. \n\nBee slots: ${await playerbees.count({ where: { playerid: targetUser.id } })}/${findTarget.get('beeSlots')}` },
                             );
                         for (let count = 0; count < beesOnPage.length; count++) {
                             const nextBee = await beelist.findOne({ where: { beeid: beesOnPage[count].dataValues.beeid } });
-                            beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1146241212169339030> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${beesOnPage[count].dataValues.beeTier} \nLevel: ${beesOnPage[count].dataValues.beeLevel}`, inline: true });
+                            beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1146241212169339030> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${beesOnPage[count].dataValues.beeTier}/10 \nLevel: ${beesOnPage[count].dataValues.beeLevel}/150 \nPower: ${beesOnPage[count].dataValues.beePower} \nHealth: ${beesOnPage[count].dataValues.beeHealth}`, inline: true });
                         }
                         if (beeFields.length === 0) {
                             beeembed.addFields({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
@@ -589,6 +537,9 @@ client.on('messageCreate', async (message) => {
                                     beeid: findBee.get('beeid'),
                                     beeLevel: 1,
                                     beeTier: findBee.get('beeBaseTier'),
+                                    tierUpMod: 1,
+                                    beePower: Math.floor(findBee.get('beeBasePower') * gradeMultipliers[findBee.get('beeBasePower')]),
+                                    beeHealth: 100,
                                 });
                             }
                             await findplayer.update({ money: findplayer.get('money') - findBee.get('beePrice') * lastArg });
@@ -728,7 +679,7 @@ client.on('messageCreate', async (message) => {
                 }
                 const invenembed = new EmbedBuilder()
                     .setColor(0xffe521)
-                    .setAuthor({ name: `${message.author.username}'s inventory`, iconURL: message.author.displayAvatarURL() })
+                    .setAuthor({ name: `${message.author.displayName}'s inventory`, iconURL: message.author.displayAvatarURL() })
                     .setFooter({ text: beeFact() })
                     .addFields({ name: 'Inventory', value: 'This is your inventory. All of your items will appear here.' })
                     .addFields({ name: 'Items', value: `\n${text}` });
@@ -754,7 +705,7 @@ client.on('messageCreate', async (message) => {
                 }
                 const invenembed = new EmbedBuilder()
                     .setColor(0xffe521)
-                    .setAuthor({ name: `${targetUser.username}'s inventory`, iconURL: targetUser.displayAvatarURL() })
+                    .setAuthor({ name: `${targetUser.displayName}'s inventory`, iconURL: targetUser.displayAvatarURL() })
                     .setFooter({ text: beeFact() })
                     .addFields({ name: 'Inventory', value: 'This is your inventory. All of your items will appear here.' })
                     .addFields({ name: 'Items', value: `\n${text}` });
@@ -773,203 +724,58 @@ client.on('messageCreate', async (message) => {
             if (findplayer.get('energy') - 20 >= 0) {
                 const findPlayerBeeSlots = await playerinformation.findOne({ where: { playerid: message.author.id } });
                 if (findPlayerBeeSlots.get('beeSlots') >= await playerbees.count({ where: { playerid: message.author.id } }) + 1) {
-                    const gradeNumber = Math.floor(Math.random() * 101);
-                    if (gradeNumber <= 15) {
-                        const findableBees = await beelist.findAll({ where: { findType: findplayer.get('area'), beeGrade: 'F' } });
-                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                        const findembed = new EmbedBuilder()
-                            .setColor(0xffe521)
-                            .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
-                            .setFooter({ text: beeFact() })
-                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                        await message.channel.send({ embeds: [findembed] });
-                        const findplayerbees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
-                        let nextIBI = 0;
-                        if (findplayerbees.length > 0) {
-                            let currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                            while (nextIBI === currentIBI) {
-                                nextIBI++;
-                                if (findplayerbees[nextIBI] != undefined) {
-                                    currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                                }
+                    let beeFound = undefined;
+                    while (beeFound === undefined) {
+                        const gradeNumber = Math.floor(Math.random() * 101);
+                        if (gradeNumber <= 15) {
+                            beeFound = await findBeeCommand('F', findplayer.get('area'));
+                        }
+                        else if (gradeNumber > 15 && gradeNumber <= 45) {
+                            beeFound = await findBeeCommand('E', findplayer.get('area'));
+                        }
+                        else if (gradeNumber > 45 && gradeNumber <= 70) {
+                            beeFound = await findBeeCommand('D', findplayer.get('area'));
+                        }
+                        else if (gradeNumber > 70 && gradeNumber <= 85) {
+                            beeFound = await findBeeCommand('C', findplayer.get('area'));
+                        }
+                        else if (gradeNumber > 85 && gradeNumber <= 95) {
+                            beeFound = await findBeeCommand('B', findplayer.get('area'));
+                        }
+                        else if (gradeNumber > 95 && gradeNumber <= 99) {
+                            beeFound = await findBeeCommand('A', findplayer.get('area'));
+                        }
+                        else if (gradeNumber === 100) {
+                            beeFound = await findBeeCommand('S', findplayer.get('area'));
+                        }
+                    }
+                    const findembed = new EmbedBuilder()
+                        .setColor(0xffe521)
+                        .setAuthor({ name: `${message.author.displayName}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
+                        .setFooter({ text: beeFact() })
+                        .addFields({ name: `${capitaliseWords((await beeFound).dataValues.beeName)}`, value: `Grade: ${(await beeFound).dataValues.beeGrade}` });
+                    await message.channel.send({ embeds: [findembed] });
+                    const findplayerbees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
+                    let nextIBI = 0;
+                    if (findplayerbees.length > 0) {
+                        let currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
+                        while (nextIBI === currentIBI) {
+                            nextIBI++;
+                            if (findplayerbees[nextIBI] != undefined) {
+                                currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
                             }
                         }
-                        await playerbees.create({
-                            playerid: message.author.id,
-                            IBI: nextIBI,
-                            beeid: beeFound.get('beeid'),
-                            beeLevel: 1,
-                            beeTier: beeFound.get('beeBaseTier'),
-                        });
                     }
-                    else if (gradeNumber > 15 && gradeNumber <= 45) {
-                        const findableBees = await beelist.findAll({ where: { findType: findplayer.get('area'), beeGrade: 'E' } });
-                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                        const findembed = new EmbedBuilder()
-                            .setColor(0xffe521)
-                            .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
-                            .setFooter({ text: beeFact() })
-                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                        await message.channel.send({ embeds: [findembed] });
-                        const findplayerbees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
-                        let nextIBI = 0;
-                        if (findplayerbees.length > 0) {
-                            let currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                            while (nextIBI === currentIBI) {
-                                nextIBI++;
-                                if (findplayerbees[nextIBI] != undefined) {
-                                    currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                                }
-                            }
-                        }
-                        await playerbees.create({
-                            playerid: message.author.id,
-                            IBI: nextIBI,
-                            beeid: beeFound.get('beeid'),
-                            beeLevel: 1,
-                            beeTier: beeFound.get('beeBaseTier'),
-                        });
-                    }
-                    else if (gradeNumber > 45 && gradeNumber <= 70) {
-                        const findableBees = await beelist.findAll({ where: { findType: findplayer.get('area'), beeGrade: 'D' } });
-                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                        const findembed = new EmbedBuilder()
-                            .setColor(0xffe521)
-                            .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
-                            .setFooter({ text: beeFact() })
-                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                        await message.channel.send({ embeds: [findembed] });
-                        const findplayerbees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
-                        let nextIBI = 0;
-                        if (findplayerbees.length > 0) {
-                            let currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                            while (nextIBI === currentIBI) {
-                                nextIBI++;
-                                if (findplayerbees[nextIBI] != undefined) {
-                                    currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                                }
-                            }
-                        }
-                        await playerbees.create({
-                            playerid: message.author.id,
-                            IBI: nextIBI,
-                            beeid: beeFound.get('beeid'),
-                            beeLevel: 1,
-                            beeTier: beeFound.get('beeBaseTier'),
-                        });
-                    }
-                    else if (gradeNumber > 70 && gradeNumber <= 85) {
-                        const findableBees = await beelist.findAll({ where: { findType: findplayer.get('area'), beeGrade: 'C' } });
-                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                        const findembed = new EmbedBuilder()
-                            .setColor(0xffe521)
-                            .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
-                            .setFooter({ text: beeFact() })
-                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                        await message.channel.send({ embeds: [findembed] });
-                        const findplayerbees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
-                        let nextIBI = 0;
-                        if (findplayerbees.length > 0) {
-                            let currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                            while (nextIBI === currentIBI) {
-                                nextIBI++;
-                                if (findplayerbees[nextIBI] != undefined) {
-                                    currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                                }
-                            }
-                        }
-                        await playerbees.create({
-                            playerid: message.author.id,
-                            IBI: nextIBI,
-                            beeid: beeFound.get('beeid'),
-                            beeLevel: 1,
-                            beeTier: beeFound.get('beeBaseTier'),
-                        });
-                    }
-                    else if (gradeNumber > 85 && gradeNumber <= 95) {
-                        const findableBees = await beelist.findAll({ where: { findType: findplayer.get('area'), beeGrade: 'B' } });
-                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                        const findembed = new EmbedBuilder()
-                            .setColor(0xffe521)
-                            .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
-                            .setFooter({ text: beeFact() })
-                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                        await message.channel.send({ embeds: [findembed] });
-                        const findplayerbees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
-                        let nextIBI = 0;
-                        if (findplayerbees.length > 0) {
-                            let currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                            while (nextIBI === currentIBI) {
-                                nextIBI++;
-                                if (findplayerbees[nextIBI] != undefined) {
-                                    currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                                }
-                            }
-                        }
-                        await playerbees.create({
-                            playerid: message.author.id,
-                            IBI: nextIBI,
-                            beeid: beeFound.get('beeid'),
-                            beeLevel: 1,
-                            beeTier: beeFound.get('beeBaseTier'),
-                        });
-                    }
-                    else if (gradeNumber > 95 && gradeNumber <= 99) {
-                        const findableBees = await beelist.findAll({ where: { findType: findplayer.get('area'), beeGrade: 'A' } });
-                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                        const findembed = new EmbedBuilder()
-                            .setColor(0xffe521)
-                            .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
-                            .setFooter({ text: beeFact() })
-                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                        await message.channel.send({ embeds: [findembed] });
-                        const findplayerbees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
-                        let nextIBI = 0;
-                        if (findplayerbees.length > 0) {
-                            let currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                            while (nextIBI === currentIBI) {
-                                nextIBI++;
-                                if (findplayerbees[nextIBI] != undefined) {
-                                    currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                                }
-                            }
-                        }
-                        await playerbees.create({
-                            playerid: message.author.id,
-                            IBI: nextIBI,
-                            beeid: beeFound.get('beeid'),
-                            beeLevel: 1,
-                            beeTier: beeFound.get('beeBaseTier'),
-                        });
-                    }
-                    else if (gradeNumber === 100) {
-                        const findableBees = await beelist.findAll({ where: { findType: findplayer.get('area'), beeGrade: 'S' } });
-                        const beeFound = findableBees[Math.floor(Math.random() * findableBees.length)];
-                        const findembed = new EmbedBuilder()
-                            .setColor(0xffe521)
-                            .setAuthor({ name: `${message.author.username}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
-                            .setFooter({ text: beeFact() })
-                            .addFields({ name: `${capitaliseWords(beeFound.get('beeName'))}`, value: `Grade: ${beeFound.get('beeGrade')}` });
-                        await message.channel.send({ embeds: [findembed] });
-                        const findplayerbees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
-                        let nextIBI = 0;
-                        if (findplayerbees.length > 0) {
-                            let currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                            while (nextIBI === currentIBI) {
-                                nextIBI++;
-                                if (findplayerbees[nextIBI] != undefined) {
-                                    currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                                }
-                            }
-                        }
-                        await playerbees.create({
-                            playerid: message.author.id,
-                            IBI: nextIBI,
-                            beeid: beeFound.get('beeid'),
-                            beeLevel: 1,
-                            beeTier: beeFound.get('beeBaseTier'),
-                        });
-                    }
+                    await playerbees.create({
+                        playerid: message.author.id,
+                        IBI: nextIBI,
+                        beeid: (await beeFound).dataValues.beeid,
+                        beeLevel: 1,
+                        beeTier: (await beeFound).dataValues.beeBaseTier,
+                        tierUpMod: 1,
+                        beePower: Math.floor((await beeFound).dataValues.beeBasePower * gradeMultipliers[(await beeFound).dataValues.beeGrade]),
+                        beeHealth: 100,
+                    });
                     await findplayer.update({ energy: findplayer.get('energy') - 20 });
                 }
                 else {
@@ -996,9 +802,15 @@ client.on('messageCreate', async (message) => {
         try {
             if (findplayer.get('energy') - 10 >= 0) {
                 const claimTime = Date.now();
-                const advTime = (claimTime - findplayer.get('lastAdvClaim')) / 1000 / 60;
-                const moneyGained = Math.floor(Math.random() * 101 * advTime);
                 const itemsAvailable = await items.findAll({ where: { findType: findplayer.get('area') } });
+                const findAllBees = await playerbees.findAll({ where: { playerid: message.author.id } });
+                let beePowerMod = 0;
+                for (let i = 0; i < findAllBees.length; i++) {
+                    beePowerMod += findAllBees[i].dataValues.beePower;
+                }
+                beePowerMod /= 100;
+                const advTime = ((claimTime - findplayer.get('lastAdvClaim')) / 1000 / 60) * beePowerMod;
+                const moneyGained = Math.floor(Math.random() * 11 * advTime);
                 let itemsGained = 0;
                 let text = '';
                 text += `Money: ${moneyGained}`;
@@ -1024,7 +836,7 @@ client.on('messageCreate', async (message) => {
                 }
                 const advembed = new EmbedBuilder()
                     .setColor(0xffe521)
-                    .setAuthor({ name: `${message.author.username}'s adventuring results`, iconURL: message.author.displayAvatarURL() })
+                    .setAuthor({ name: `${message.author.displayName}'s adventuring results`, iconURL: message.author.displayAvatarURL() })
                     .setFooter({ text: beeFact() })
                     .addFields({ name: 'The bees are back!', value: `You lost 10 energy :zap: \nThe bees brought with them: \n\n${text}` });
                 await message.channel.send({ embeds: [advembed] });
@@ -1058,46 +870,51 @@ client.on('messageCreate', async (message) => {
             }
             const findBee = await playerbees.findOne({ where: { IBI: chosenBee, playerid: message.author.id } });
             if (findBee != undefined) {
-                const findBeeName = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
-                let totalMoney = 0;
-                for (let count = findBee.get('beeLevel'); count < findBee.get('beeLevel') + lastArg; count++) {
-                    totalMoney += (500 * count) * 1.67;
-                }
-                if (lastArg > 1 && findplayer.get('money') >= totalMoney) {
-                    const row = new ActionRowBuilder()
-                        .addComponents([
-                            new ButtonBuilder()
-                                .setCustomId('confirm')
-                                .setLabel('Yes')
-                                .setStyle(ButtonStyle.Success),
-                            new ButtonBuilder()
-                                .setCustomId('deny')
-                                .setLabel('No')
-                                .setStyle(ButtonStyle.Danger),
-                        ]);
-                    const confirmembed = new EmbedBuilder()
-                        .setColor(0xffe521)
-                        .setFooter({ text: beeFact() })
-                        .addFields({ name: `Are you sure you want to train this bee ${lastArg} times?`, value: `Doing so will cost ${totalMoney} money` });
-                    const confirmMessage = await message.channel.send({ embeds: [confirmembed], components: [row] });
-                    const collectorFilter = i => i.user.id === message.author.id;
-                    const collector = await message.channel.awaitMessageComponent({ filter: collectorFilter, time: 20000 });
-                    if (collector.customId === 'confirm') {
-                        confirmMessage.edit({ content: `Trained your ${capitaliseWords(findBeeName.get('beeName'))} for ${totalMoney} money! Your ${capitaliseWords(findBeeName.get('beeName'))}'s level increased by ${lastArg}!`, embeds: [], components: [] });
+                if (findBee.get('beeLevel') + lastArg <= 150) {
+                    const findBeeName = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
+                    let totalMoney = 0;
+                    for (let count = findBee.get('beeLevel'); count < findBee.get('beeLevel') + lastArg; count++) {
+                        totalMoney += (500 * count) * 1.67;
+                    }
+                    if (lastArg > 1 && findplayer.get('money') >= totalMoney) {
+                        const row = new ActionRowBuilder()
+                            .addComponents([
+                                new ButtonBuilder()
+                                    .setCustomId('confirm')
+                                    .setLabel('Yes')
+                                    .setStyle(ButtonStyle.Success),
+                                new ButtonBuilder()
+                                    .setCustomId('deny')
+                                    .setLabel('No')
+                                    .setStyle(ButtonStyle.Danger),
+                            ]);
+                        const confirmembed = new EmbedBuilder()
+                            .setColor(0xffe521)
+                            .setFooter({ text: beeFact() })
+                            .addFields({ name: `Are you sure you want to train this bee ${lastArg} times?`, value: `Doing so will cost ${totalMoney} money` });
+                        const confirmMessage = await message.channel.send({ embeds: [confirmembed], components: [row] });
+                        const collectorFilter = i => i.user.id === message.author.id;
+                        const collector = await message.channel.awaitMessageComponent({ filter: collectorFilter, time: 20000 });
+                        if (collector.customId === 'confirm') {
+                            confirmMessage.edit({ content: `Trained your ${capitaliseWords(findBeeName.get('beeName'))} for ${totalMoney} money! Your ${capitaliseWords(findBeeName.get('beeName'))}'s level increased by ${lastArg}!`, embeds: [], components: [] });
+                            await findplayer.update({ money: findplayer.get('money') - totalMoney });
+                            await findBee.update({ beeLevel: findBee.get('beeLevel') + lastArg, beePower: findBee.get('beePower') * (0.05 * lastArg + 1) });
+                        }
+                        if (collector.customId === 'deny') {
+                            confirmMessage.edit({ content: `You decided not to train your ${capitaliseWords(findBeeName.get('beeName'))}.`, embeds: [], components: [] });
+                        }
+                    }
+                    else if (lastArg === 1 && findplayer.get('money') >= totalMoney) {
+                        await message.channel.send(`Trained your ${capitaliseWords(findBeeName.get('beeName'))} for ${totalMoney} money! Your ${capitaliseWords(findBeeName.get('beeName'))}'s level increased by one!`);
                         await findplayer.update({ money: findplayer.get('money') - totalMoney });
-                        await findBee.update({ beeLevel: findBee.get('beeLevel') + lastArg });
+                        await findBee.update({ beeLevel: findBee.get('beeLevel') + 1 });
                     }
-                    if (collector.customId === 'deny') {
-                        confirmMessage.edit({ content: `You decided not to train your ${capitaliseWords(findBeeName.get('beeName'))}.`, embeds: [], components: [] });
+                    else {
+                        await message.channel.send('You don\'t have enough money for this lol');
                     }
-                }
-                else if (lastArg === 1 && findplayer.get('money') >= totalMoney) {
-                    await message.channel.send(`Trained your ${capitaliseWords(findBeeName.get('beeName'))} for ${totalMoney} money! Your ${capitaliseWords(findBeeName.get('beeName'))}'s level increased by one!`);
-                    await findplayer.update({ money: findplayer.get('money') - totalMoney });
-                    await findBee.update({ beeLevel: findBee.get('beeLevel') + 1 });
                 }
                 else {
-                    await message.channel.send('You don\'t have enough money for this lol');
+                    await message.channel.send('If you train the bee this much, it will go above the level cap lol');
                 }
             }
             else {
@@ -1116,32 +933,78 @@ client.on('messageCreate', async (message) => {
             const chosenBee = args[0];
             const findBee = await playerbees.findOne({ where: { IBI: chosenBee, playerid: message.author.id } });
             if (findBee) {
-                if (findplayer.get('energy') - 50 >= 0) {
-                    const tierRoll = Math.floor(Math.random() * 100);
-                    let breedTier = 0;
-                    if (tierRoll <= Math.floor(100 / findBee.get('beeTier'))) {
-                        breedTier += findBee.get('beeTier') + 1;
+                if (findBee.get('beeTier') + 1 <= 10) {
+                    if (findplayer.get('energy') - 50 >= 0) {
+                        const tierRoll = Math.floor(Math.random() * 100);
+                        let breedTier = 0;
+                        if (tierRoll <= Math.floor(100 / findBee.get('beeTier') * findBee.get('tierUpMod'))) {
+                            breedTier += findBee.get('beeTier') + 1;
+                            findBee.update({ tierUpMod: 1, beePower: findBee.get('beePower') * 1.5 });
+                        }
+                        else {
+                            breedTier = findBee.get('beeTier');
+                            findBee.update({ tierUpMod: findBee.get('tierUpMod') + 0.05 });
+                        }
+                        const findBeeName = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
+                        const breedEmbed = new EmbedBuilder()
+                        .setColor(0xffe521)
+                        .setAuthor({ name: `${message.author.displayName}'s breeding results`, iconURL: message.author.displayAvatarURL() })
+                        .setFooter({ text: beeFact() })
+                        .addFields({ name: `Your ${capitaliseWords(findBeeName.get('beeName'))} had an egg!`, value: `\n${capitaliseWords(findBeeName.get('beeName'))} \nTier: ${breedTier} \nLevel: 1` });
+                        await message.channel.send({ embeds: [breedEmbed] });
+                        findBee.update({ beeLevel: 1, beeTier: breedTier });
+                        findplayer.update({ energy: findplayer.get('energy') - 50 });
                     }
                     else {
-                        breedTier = findBee.get('beeTier');
+                        await message.channel.send('You do not have enough energy to breed your bees! Rest for a while then try again.');
                     }
-                    const findBeeName = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
-                    const breedEmbed = new EmbedBuilder()
-                    .setColor(0xffe521)
-                    .setAuthor({ name: `${message.author.username}'s breeding results`, iconURL: message.author.displayAvatarURL() })
-                    .setFooter({ text: beeFact() })
-                    .addFields({ name: `Your ${capitaliseWords(findBeeName)} had an egg!`, value: `\n${capitaliseWords(findBeeName)} \nTier: ${breedTier} \nLevel: 1` });
-                    await message.channel.send({ embeds: [breedEmbed] });
-                    findBee.update({ beeLevel: 1, beeTier: breedTier });
-                    findplayer.update({ energy: findplayer.get('energy') - 50 });
                 }
                 else {
-                    await message.channel.send('You do not have enough energy to breed your bees! Rest for a while then try again.');
+                    await message.channel.send('This bee is at the max tier!');
                 }
             }
             else {
                 await message.channel.send('This is not an IBI associated with a bee you own!');
             }
+        }
+        catch (error) {
+            await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+            console.log(error);
+        }
+    }
+
+    // Map
+    else if (command === 'map') {
+        const findArea = await area.findOne({ where: { areaName: findplayer.get('area') } });
+        const areaPos = areaMap[findArea.get('areaid')];
+        const canvas = Canvas.createCanvas(512, 384);
+        const context = canvas.getContext('2d');
+        const background = await Canvas.loadImage('./Bee Economy Map.jpg');
+        context.drawImage(background, 0, 0, canvas.width, canvas.height);
+        context.font = '16px Comic Sans MS';
+        context.fillStyle = '#ffffff';
+        context.fillText('You', areaPos[0], areaPos[1] - 5);
+        context.beginPath();
+        context.arc(areaPos[0] + 15, areaPos[1] + 15, 15, 0, Math.PI * 2, true);
+        context.closePath();
+        context.clip();
+        const avatar = await Canvas.loadImage(message.author.displayAvatarURL({ extension: 'jpg' }));
+        context.drawImage(avatar, areaPos[0], areaPos[1], 30, 30);
+        const attachment = new AttachmentBuilder(await canvas.encode('png'), { name: 'map-image.png' });
+        await message.channel.send({ files: [attachment] });
+    }
+
+    // Move
+    else if (command === 'move') {
+        try {
+            const argsText = args.join(' ').toLowerCase();
+            const findArea = await area.findOne({ where: { areaName: argsText.toLowerCase() } });
+            if (!findArea) {
+                await message.channel.send('This is not an area you can move your hive to!');
+                return;
+            }
+            await message.channel.send(`You migrated your hive to the ${findArea.get('areaName')}!`);
+            await findplayer.update({ area: findArea.get('areaName') });
         }
         catch (error) {
             await message.channel.send(`There was an error! ${error.name}: ${error.message}`);

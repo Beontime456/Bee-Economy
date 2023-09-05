@@ -12,6 +12,7 @@ module.exports = (sequelize, DataTypes) => {
         beeBaseTier: DataTypes.INTEGER,
         findType: DataTypes.STRING,
         beePrice: DataTypes.INTEGER,
+        beeBasePower: DataTypes.INTEGER,
     }, {
             timestamps: false,
         });
