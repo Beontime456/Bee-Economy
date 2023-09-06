@@ -10,6 +10,7 @@ module.exports = (sequelize, DataTypes) => {
         lastEnergyRegen: DataTypes.INTEGER,
         lastAdvClaim: DataTypes.INTEGER,
         area: DataTypes.STRING,
+        currentQuest: DataTypes.INTEGER,
     }, {
             timestamps: false,
         });

@@ -10,6 +10,7 @@ const sequelize = new Sequelize('database', 'user', 'password', {
 const beeList = require('./models/beelist.js')(sequelize, Sequelize.DataTypes);
 const itemList = require('./models/items.js')(sequelize, Sequelize.DataTypes);
 const areaList = require('./models/area.js')(sequelize, Sequelize.DataTypes);
+const questList = require('./models/quests.js')(sequelize, Sequelize.DataTypes);
 require('./models/inventory.js')(sequelize, Sequelize.DataTypes);
 require('./models/playerinformation.js')(sequelize, Sequelize.DataTypes);
 require('./models/playerbees.js')(sequelize, Sequelize.DataTypes);
@@ -48,10 +49,14 @@ sequelize.sync({ force }).then(async () => {
         areaList.upsert({ areaName: 'island' }),
         areaList.upsert({ areaName: 'badlands' }),
     ];
+    const quests = [
+        questList.upsert({ questid: 0, questInfo: '{ "name": "Humble Beginnings", "description": "You gotta start somewhere. Get familiar with your bees before leaving the backyard.", "requirements": { "money": 5000 }, "rewards": { "money": 2500, "bee": "Barbeecue", "bee slots": 1 } }' }),
+    ];
 
     await Promise.all(bees);
     await Promise.all(items);
     await Promise.all(areas);
+    await Promise.all(quests);
 
     console.log('Database synced');
 

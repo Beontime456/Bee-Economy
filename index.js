@@ -46,12 +46,14 @@ const area = require('./models/area.js')(sequelize, Sequelize.DataTypes);
 const inventory = require('./models/inventory.js')(sequelize, Sequelize.DataTypes);
 const playerinformation = require('./models/playerinformation.js')(sequelize, Sequelize.DataTypes);
 const playerbees = require('./models/playerbees.js')(sequelize, Sequelize.DataTypes);
+const quests = require('./models/quests.js')(sequelize, Sequelize.DataTypes);
 playerinformation.sync();
 playerbees.sync();
 beelist.sync();
 items.sync();
 inventory.sync();
 area.sync();
+quests.sync();
 
 // Initialise a prefix for the bot to see message commands
 const prefix = 'bee ';
@@ -200,6 +202,7 @@ client.on('messageCreate', async (message) => {
                 lastEnergyRegen: null,
                 lastAdvClaim: Date.now(),
                 area: 'backyard',
+                currentQuest: 0,
             });
             await message.channel.send('Congrats, you have now started!');
             }
@@ -975,23 +978,34 @@ client.on('messageCreate', async (message) => {
 
     // Map
     else if (command === 'map') {
-        const findArea = await area.findOne({ where: { areaName: findplayer.get('area') } });
-        const areaPos = areaMap[findArea.get('areaid')];
-        const canvas = Canvas.createCanvas(512, 384);
-        const context = canvas.getContext('2d');
-        const background = await Canvas.loadImage('./Bee Economy Map.jpg');
-        context.drawImage(background, 0, 0, canvas.width, canvas.height);
-        context.font = '16px Comic Sans MS';
-        context.fillStyle = '#ffffff';
-        context.fillText('You', areaPos[0], areaPos[1] - 5);
-        context.beginPath();
-        context.arc(areaPos[0] + 15, areaPos[1] + 15, 15, 0, Math.PI * 2, true);
-        context.closePath();
-        context.clip();
-        const avatar = await Canvas.loadImage(message.author.displayAvatarURL({ extension: 'jpg' }));
-        context.drawImage(avatar, areaPos[0], areaPos[1], 30, 30);
-        const attachment = new AttachmentBuilder(await canvas.encode('png'), { name: 'map-image.png' });
-        await message.channel.send({ files: [attachment] });
+        try {
+            const findArea = await area.findOne({ where: { areaName: findplayer.get('area') } });
+            const areaPos = areaMap[findArea.get('areaid')];
+            const canvas = Canvas.createCanvas(512, 384);
+            const context = canvas.getContext('2d');
+            const background = await Canvas.loadImage('./Bee Economy Map.jpg');
+            context.drawImage(background, 0, 0, canvas.width, canvas.height);
+            context.font = '16px Comic Sans MS';
+            context.fillStyle = '#ffffff';
+            context.fillText('You', areaPos[0], areaPos[1] - 5);
+            context.beginPath();
+            context.arc(areaPos[0] + 15, areaPos[1] + 15, 15, 0, Math.PI * 2, true);
+            context.closePath();
+            context.clip();
+            const avatar = await Canvas.loadImage(message.author.displayAvatarURL({ extension: 'jpg' }));
+            context.drawImage(avatar, areaPos[0], areaPos[1], 30, 30);
+            const attachment = new AttachmentBuilder(await canvas.encode('png'), { name: 'map-image.png' });
+            await message.channel.send({ files: [attachment] });
+        }
+        catch (error) {
+            if (error.name === 'TypeError') {
+                await message.channel.send('You have not started yet! use \'bee start\' to start!');
+            }
+            else {
+                await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                console.log(error);
+            }
+        }
     }
 
     // Move
@@ -1005,6 +1019,64 @@ client.on('messageCreate', async (message) => {
             }
             await message.channel.send(`You migrated your hive to the ${findArea.get('areaName')}!`);
             await findplayer.update({ area: findArea.get('areaName') });
+        }
+        catch (error) {
+            if (error.name === 'TypeError') {
+                await message.channel.send('You have not started yet! use \'bee start\' to start!');
+            }
+            else {
+                await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                console.log(error);
+            }
+        }
+    }
+
+    // Quest
+    else if (command === 'quest') {
+        try {
+            const findQuest = await quests.findOne({ where: { questid: findplayer.get('currentQuest') } });
+            if (findQuest) {
+                const questInfo = JSON.parse(findQuest.get('questInfo'));
+                let text = '';
+                const reqKeys = Object.keys(questInfo.requirements);
+                const reqVals = Object.values(questInfo.requirements);
+                for (let i = 0; i < reqKeys.length; i++) {
+                    const findItem = await items.findOne({ where: { itemName: reqKeys[i] } });
+                    const findBee = await beelist.findOne({ where: { beeName: reqKeys[i] } });
+                    let reqProgress = null;
+                    if (reqKeys[i] === 'money') {
+                        reqProgress = findplayer.get('money');
+                    }
+                    else if (findItem) {
+                        reqProgress = await inventory.findOne({ where: { playerid: message.author.id, itemid: findItem.get('itemid') } });
+                        if (reqProgress) {
+                            reqProgress = reqProgress.get('itemAmount');
+                        }
+                        else {
+                            reqProgress = 0;
+                        }
+                    }
+                    else if (findBee) {
+                        reqProgress = await playerbees.count({ where: { playerid: message.author.id, beeid: findBee.get('beeid') } });
+                    }
+                    text += `\n${capitaliseWords(reqKeys[i])}: ${reqProgress}/${reqVals[i]}`;
+                }
+                let rewardText = '';
+                const rewardKeys = Object.keys(questInfo.rewards);
+                const rewardVals = Object.values(questInfo.rewards);
+                for (let i = 0; i < rewardKeys.length; i++) {
+                    rewardText += `\n${capitaliseWords(rewardKeys[i])}: ${rewardVals[i]}`;
+                }
+                const questEmbed = new EmbedBuilder()
+                    .setColor(0xffe521)
+                    .setAuthor({ name: `${message.author.displayName}'s quest`, iconURL: message.author.displayAvatarURL() })
+                    .setFooter({ text: beeFact() })
+                    .addFields({ name: questInfo.name, value: `${questInfo.description} \n\nRequirements: ${text} \n\nRewards: ${rewardText}` });
+                await message.channel.send({ embeds: [questEmbed] });
+            }
+            else {
+                await message.channel.send('You have completed every quest!');
+            }
         }
         catch (error) {
             await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
