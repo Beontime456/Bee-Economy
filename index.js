@@ -1040,6 +1040,7 @@ client.on('messageCreate', async (message) => {
                 let text = '';
                 const reqKeys = Object.keys(questInfo.requirements);
                 const reqVals = Object.values(questInfo.requirements);
+                const completed = [];
                 for (let i = 0; i < reqKeys.length; i++) {
                     const findItem = await items.findOne({ where: { itemName: reqKeys[i] } });
                     const findBee = await beelist.findOne({ where: { beeName: reqKeys[i] } });
@@ -1060,6 +1061,12 @@ client.on('messageCreate', async (message) => {
                         reqProgress = await playerbees.count({ where: { playerid: message.author.id, beeid: findBee.get('beeid') } });
                     }
                     text += `\n${capitaliseWords(reqKeys[i])}: ${reqProgress}/${reqVals[i]}`;
+                    if (reqProgress >= reqVals[i]) {
+                        completed.push(true);
+                    }
+                    else {
+                        completed.push(false);
+                    }
                 }
                 let rewardText = '';
                 const rewardKeys = Object.keys(questInfo.rewards);
@@ -1067,17 +1074,31 @@ client.on('messageCreate', async (message) => {
                 for (let i = 0; i < rewardKeys.length; i++) {
                     rewardText += `\n${capitaliseWords(rewardKeys[i])}: ${rewardVals[i]}`;
                 }
-                const questEmbed = new EmbedBuilder()
-                    .setColor(0xffe521)
-                    .setAuthor({ name: `${message.author.displayName}'s quest`, iconURL: message.author.displayAvatarURL() })
-                    .setFooter({ text: beeFact() })
-                    .addFields({ name: questInfo.name, value: `${questInfo.description} \n\nRequirements: ${text} \n\nRewards: ${rewardText}` });
-                await message.channel.send({ embeds: [questEmbed] });
+                if (completed.filter(element => element == false).length > 0) {
+                    const questEmbed = new EmbedBuilder()
+                        .setColor(0xffe521)
+                        .setAuthor({ name: `${message.author.displayName}'s quest`, iconURL: message.author.displayAvatarURL() })
+                        .setFooter({ text: beeFact() })
+                        .addFields({ name: questInfo.name, value: `${questInfo.description} \n\nRequirements: ${text} \n\nRewards: ${rewardText}` });
+                    await message.channel.send({ embeds: [questEmbed] });
+                }
+                else {
+                    await message.channel.send('You completed the quest!');
+                }
             }
             else {
                 await message.channel.send('You have completed every quest!');
             }
         }
+        catch (error) {
+            await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+            console.log(error);
+        }
+    }
+
+    // Bee Box
+    else if (command === 'claimbox') {
+        try {}
         catch (error) {
             await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
             console.log(error);

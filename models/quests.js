@@ -5,6 +5,7 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true,
         },
         questInfo: DataTypes.STRING,
+        questLineNum: DataTypes.INTEGER,
     }, {
             timestamps: false,
         });

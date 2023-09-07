@@ -50,7 +50,7 @@ sequelize.sync({ force }).then(async () => {
         areaList.upsert({ areaName: 'badlands' }),
     ];
     const quests = [
-        questList.upsert({ questid: 0, questInfo: '{ "name": "Humble Beginnings", "description": "You gotta start somewhere. Get familiar with your bees before leaving the backyard.", "requirements": { "money": 5000 }, "rewards": { "money": 2500, "bee": "Barbeecue", "bee slots": 1 } }' }),
+        questList.upsert({ questid: 0, questInfo: '{ "name": "Humble Beginnings", "description": "You gotta start somewhere. Get familiar with your bees before leaving the backyard.", "requirements": { "money": 5000, "flower petal": 10 }, "rewards": { "money": 2500, "bee": "Barbeecue", "bee slots": 1 } }', questLineNum: 1 }),
     ];
 
     await Promise.all(bees);
