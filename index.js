@@ -47,6 +47,7 @@ const inventory = require('./models/inventory.js')(sequelize, Sequelize.DataType
 const playerinformation = require('./models/playerinformation.js')(sequelize, Sequelize.DataTypes);
 const playerbees = require('./models/playerbees.js')(sequelize, Sequelize.DataTypes);
 const quests = require('./models/quests.js')(sequelize, Sequelize.DataTypes);
+const giftbox = require('./models/claimbox.js')(sequelize, Sequelize.DataTypes);
 playerinformation.sync();
 playerbees.sync();
 beelist.sync();
@@ -54,6 +55,7 @@ items.sync();
 inventory.sync();
 area.sync();
 quests.sync();
+giftbox.sync();
 
 // Initialise a prefix for the bot to see message commands
 const prefix = 'bee ';
@@ -1083,7 +1085,33 @@ client.on('messageCreate', async (message) => {
                     await message.channel.send({ embeds: [questEmbed] });
                 }
                 else {
-                    await message.channel.send('You completed the quest!');
+                    const questEmbed = new EmbedBuilder()
+                        .setColor(0xffe521)
+                        .setAuthor({ name: 'Quest completion', iconURL: message.author.displayAvatarURL() })
+                        .setFooter({ text: beeFact() })
+                        .addFields({ name: 'You completed a quest!', value: `Rewards: ${rewardText}` });
+                    await message.channel.send({ embeds: [questEmbed] });
+                    for (let i = 0; i < rewardKeys.length; i++) {
+                        const findItem = await items.findOne({ where: { itemName: rewardKeys[i] } });
+                        const findBee = await beelist.findOne({ where: { beeName: rewardKeys[i] } });
+                        let reqProgress = null;
+                        if (rewardKeys[i] === 'money') {
+                            findplayer.update({ money: findplayer.get('money') + rewardVals[i] });
+                        }
+                        else if (findItem) {
+                            reqProgress = await inventory.findOne({ where: { playerid: message.author.id, itemid: findItem.get('itemid') } });
+                            if (reqProgress) {
+                                reqProgress.update({ itemAmount: reqProgress.get('itemAmount') });
+                            }
+                            else {
+                                reqProgress = 0;
+                            }
+                        }
+                        else if (findBee) {
+                            reqProgress = await playerbees.count({ where: { playerid: message.author.id, beeid: findBee.get('beeid') } });
+                        }
+                        text += `\n${capitaliseWords(reqKeys[i])}: ${reqProgress}/${reqVals[i]}`;
+                    }
                 }
             }
             else {
@@ -1097,8 +1125,85 @@ client.on('messageCreate', async (message) => {
     }
 
     // Bee Box
-    else if (command === 'claimbox') {
-        try {}
+    else if (command === 'giftbox') {
+        try {
+            const findGifts = await giftbox.findAll({ where: { playerid: message.author.id } });
+            let pages = Math.ceil(findGifts.length / 9);
+                    if (pages === 0) {
+                        pages = 1;
+                    }
+                    const embeds = [];
+                    for (let page = 0; page < pages; page++) {
+                        const beeFields = [];
+                        const startIndex = page * 9;
+                        const beesOnPage = findGifts.slice(startIndex, startIndex + 9);
+                        const giftembed = new EmbedBuilder()
+                            .setColor(0xffe521)
+                            .setAuthor({ name: `${message.author.displayName}'s giftbox - Page ${page + 1}`, iconURL: message.author.displayAvatarURL() })
+                            .setFooter({ text: beeFact() })
+                            .addFields(
+                                { name: 'Bee Giftbox', value: `This is your bee giftbox. Any bees earned from quests or otherwise can be found here. \nBees can be claimed with \`bee receive\`. \n\nBee slots: ${await playerbees.count({ where: { playerid: message.author.id } })}/${findplayer.get('beeSlots')}` },
+                            );
+                        for (let count = 0; count < beesOnPage.length; count++) {
+                            const nextBee = await beelist.findOne({ where: { beeid: beesOnPage[count].dataValues.beeid } });
+                            beeFields.push({ name: `\`gift ID: ${beesOnPage[count].dataValues.giftid}\` <:Basic_Bee:1146241212169339030> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nPower: ${beesOnPage[count].dataValues.beePower}`, inline: true });
+                        }
+                        if (beeFields.length === 0) {
+                            giftembed.addFields({ name: '\u200b', value: 'You have no bees to claim. \nComplete some quests for bees to appear here.' });
+                        }
+                        for (let count = 0; count < beeFields.length; count++) {
+                            giftembed.addFields(beeFields[count]);
+                        }
+                        embeds.push(giftembed);
+                    }
+                    if (embeds.length > 1) {
+                        const row = new ActionRowBuilder()
+                        .addComponents([
+                            new ButtonBuilder()
+                                .setCustomId('firstPage')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setEmoji('⏪'),
+                            new ButtonBuilder()
+                                .setCustomId('prevPage')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setEmoji('◀️'),
+                            new ButtonBuilder()
+                                .setCustomId('nextPage')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setEmoji('▶️'),
+                            new ButtonBuilder()
+                                .setCustomId('lastPage')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setEmoji('⏩'),
+                        ]);
+                        let currentPage = 0;
+                        const embedMessage = await message.channel.send({ embeds: [embeds[0]], components: [row] });
+                        const collector = message.channel.createMessageComponentCollector({ time: 90000 });
+                        collector.on('collect', async i => {
+                            if (message.author.id === findplayer.get('playerid')) {
+                                if (!i.deferred) {
+                                    i.deferUpdate();
+                                }
+                                if (i.customId === 'firstPage') {
+                                    currentPage = 0;
+                                }
+                                else if (i.customId === 'prevPage') {
+                                    currentPage = (currentPage - 1 + embeds.length) % embeds.length;
+                                }
+                                else if (i.customId === 'nextPage') {
+                                    currentPage = (currentPage + 1) % embeds.length;
+                                }
+                                else if (i.customId === 'lastPage') {
+                                    currentPage = embeds.length - 1;
+                                }
+                                await embedMessage.edit({ embeds: [embeds[currentPage]], components: [row] });
+                            }
+                        });
+                    }
+                    else {
+                        await message.channel.send({ embeds: [embeds[0]] });
+                    }
+        }
         catch (error) {
             await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
             console.log(error);

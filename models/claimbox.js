@@ -1,13 +1,10 @@
 module.exports = (sequelize, DataTypes) => {
-    return sequelize.define('playerbees', {
+    return sequelize.define('giftbox', {
         playerid: DataTypes.STRING,
-        IBI: DataTypes.INTEGER,
+        giftid: DataTypes.INTEGER,
         beeid: DataTypes.INTEGER,
-        beeLevel: DataTypes.INTEGER,
         beeTier: DataTypes.INTEGER,
-        tierUpMod: DataTypes.INTEGER,
         beePower: DataTypes.INTEGER,
-        beeHealth: DataTypes.INTEGER,
     }, {
             timestamps: false,
         });

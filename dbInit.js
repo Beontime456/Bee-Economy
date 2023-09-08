@@ -14,6 +14,7 @@ const questList = require('./models/quests.js')(sequelize, Sequelize.DataTypes);
 require('./models/inventory.js')(sequelize, Sequelize.DataTypes);
 require('./models/playerinformation.js')(sequelize, Sequelize.DataTypes);
 require('./models/playerbees.js')(sequelize, Sequelize.DataTypes);
+require('./models/claimbox.js')(sequelize, Sequelize.DataTypes);
 
 const force = process.argv.includes('--force') || process.argv.includes('-f');
 
