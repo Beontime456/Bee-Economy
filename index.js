@@ -312,7 +312,7 @@ client.on('messageCreate', async (message) => {
                             );
                         for (let count = 0; count < beesOnPage.length; count++) {
                             const nextBee = await beelist.findOne({ where: { beeid: beesOnPage[count].dataValues.beeid } });
-                            beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1146241212169339030> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${beesOnPage[count].dataValues.beeTier}/10 \nLevel: ${beesOnPage[count].dataValues.beeLevel}/150 \nPower: ${beesOnPage[count].dataValues.beePower} \nHealth: ${beesOnPage[count].dataValues.beeHealth}`, inline: true });
+                            beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1149318543553351701> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${beesOnPage[count].dataValues.beeTier}/10 \nLevel: ${beesOnPage[count].dataValues.beeLevel}/150 \nPower: ${beesOnPage[count].dataValues.beePower} \nHealth: ${beesOnPage[count].dataValues.beeHealth}`, inline: true });
                         }
                         if (beeFields.length === 0) {
                             beeembed.addFields({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
@@ -405,7 +405,7 @@ client.on('messageCreate', async (message) => {
                             );
                         for (let count = 0; count < beesOnPage.length; count++) {
                             const nextBee = await beelist.findOne({ where: { beeid: beesOnPage[count].dataValues.beeid } });
-                            beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1146241212169339030> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${beesOnPage[count].dataValues.beeTier}/10 \nLevel: ${beesOnPage[count].dataValues.beeLevel}/150 \nPower: ${beesOnPage[count].dataValues.beePower} \nHealth: ${beesOnPage[count].dataValues.beeHealth}`, inline: true });
+                            beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1149318543553351701> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${beesOnPage[count].dataValues.beeTier}/10 \nLevel: ${beesOnPage[count].dataValues.beeLevel}/150 \nPower: ${beesOnPage[count].dataValues.beePower} \nHealth: ${beesOnPage[count].dataValues.beeHealth}`, inline: true });
                         }
                         if (beeFields.length === 0) {
                             beeembed.addFields({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
@@ -499,7 +499,7 @@ client.on('messageCreate', async (message) => {
             .setFooter({ text: beeFact() })
             .addFields({ name: '\u200b', value: 'Hello, welcome to the bee shop! Here you can buy bees that can work for you. These bees are really useful, so I think you should buy some. You can also buy items which may aid you.' + '\u200b' })
             .addFields({ name: 'Bees', value: `\n\n${text}` }, { name: 'Items', value: `\n\n${text2}` });
-        await message.channel.send({ embeds: [shopembed] });
+            await message.channel.send({ embeds: [shopembed] });
         }
         catch (error) {
             await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
@@ -1087,31 +1087,60 @@ client.on('messageCreate', async (message) => {
                 else {
                     const questEmbed = new EmbedBuilder()
                         .setColor(0xffe521)
-                        .setAuthor({ name: 'Quest completion', iconURL: message.author.displayAvatarURL() })
+                        .setAuthor({ name: 'Quest Complete!', iconURL: message.author.displayAvatarURL() })
                         .setFooter({ text: beeFact() })
-                        .addFields({ name: 'You completed a quest!', value: `Rewards: ${rewardText}` });
+                        .addFields({ name: 'You completed the quest! You unlocked the next area!', value: `\nRewards: ${rewardText} \n\nIf you got a bee, it'll show up in \`bee giftbox\`.` });
                     await message.channel.send({ embeds: [questEmbed] });
                     for (let i = 0; i < rewardKeys.length; i++) {
-                        const findItem = await items.findOne({ where: { itemName: rewardKeys[i] } });
-                        const findBee = await beelist.findOne({ where: { beeName: rewardKeys[i] } });
+                        let value = rewardVals[i];
+                        if (typeof rewardVals[i] === 'string') {
+                            value = rewardVals[i].toLowerCase();
+                        }
+                        const key = rewardKeys[i].toLowerCase();
+                        const findItem = await items.findOne({ where: { itemName: key } });
+                        const findBee = await beelist.findOne({ where: { beeName: value } });
                         let reqProgress = null;
                         if (rewardKeys[i] === 'money') {
-                            findplayer.update({ money: findplayer.get('money') + rewardVals[i] });
+                            await findplayer.update({ money: findplayer.get('money') + rewardVals[i] });
+                        }
+                        else if (rewardKeys[i] === 'bee slots') {
+                            await findplayer.update({ beeSlots: findplayer.get('beeSlots') + rewardVals[i] });
                         }
                         else if (findItem) {
                             reqProgress = await inventory.findOne({ where: { playerid: message.author.id, itemid: findItem.get('itemid') } });
                             if (reqProgress) {
-                                reqProgress.update({ itemAmount: reqProgress.get('itemAmount') });
+                                await reqProgress.update({ itemAmount: reqProgress.get('itemAmount') + rewardVals[i] });
                             }
                             else {
-                                reqProgress = 0;
+                                await reqProgress.create({
+                                    playerid: message.author.id,
+                                    itemid: findItem.get('itemid'),
+                                    itemAmount: rewardVals[i],
+                                });
                             }
                         }
                         else if (findBee) {
-                            reqProgress = await playerbees.count({ where: { playerid: message.author.id, beeid: findBee.get('beeid') } });
+                            const findGifts = await giftbox.findAll({ where: { playerid: message.author.id } });
+                            let nextid = 0;
+                            if (findGifts.length > 0) {
+                                let currentid = await findGifts[nextid].dataValues.giftid;
+                                while (nextid === currentid) {
+                                    nextid++;
+                                    if (findGifts[nextid] != undefined) {
+                                        currentid = await findGifts[nextid].dataValues.giftid;
+                                    }
+                                }
+                            }
+                            await giftbox.create({
+                                playerid: message.author.id,
+                                giftid: nextid,
+                                beeid: findBee.get('beeid'),
+                                beeTier: findBee.get('beeBaseTier'),
+                                beePower: Math.floor(findBee.get('beeBasePower') * gradeMultipliers[findBee.get('beeGrade')]),
+                            });
                         }
-                        text += `\n${capitaliseWords(reqKeys[i])}: ${reqProgress}/${reqVals[i]}`;
                     }
+                    await findplayer.update({ currentQuest: findplayer.get('currentQuest') + 1 });
                 }
             }
             else {
@@ -1142,11 +1171,11 @@ client.on('messageCreate', async (message) => {
                             .setAuthor({ name: `${message.author.displayName}'s giftbox - Page ${page + 1}`, iconURL: message.author.displayAvatarURL() })
                             .setFooter({ text: beeFact() })
                             .addFields(
-                                { name: 'Bee Giftbox', value: `This is your bee giftbox. Any bees earned from quests or otherwise can be found here. \nBees can be claimed with \`bee receive\`. \n\nBee slots: ${await playerbees.count({ where: { playerid: message.author.id } })}/${findplayer.get('beeSlots')}` },
+                                { name: 'Bee Giftbox', value: 'This is your bee giftbox. Any bees earned from quests or otherwise can be found here. \nBees can be claimed with `bee receive` and then the gift id of the bee you want.' },
                             );
                         for (let count = 0; count < beesOnPage.length; count++) {
                             const nextBee = await beelist.findOne({ where: { beeid: beesOnPage[count].dataValues.beeid } });
-                            beeFields.push({ name: `\`gift ID: ${beesOnPage[count].dataValues.giftid}\` <:Basic_Bee:1146241212169339030> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nPower: ${beesOnPage[count].dataValues.beePower}`, inline: true });
+                            beeFields.push({ name: `\`gift ID: ${beesOnPage[count].dataValues.giftid}\` <:Basic_Bee:1149318543553351701> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nPower: ${beesOnPage[count].dataValues.beePower}`, inline: true });
                         }
                         if (beeFields.length === 0) {
                             giftembed.addFields({ name: '\u200b', value: 'You have no bees to claim. \nComplete some quests for bees to appear here.' });
@@ -1203,6 +1232,51 @@ client.on('messageCreate', async (message) => {
                     else {
                         await message.channel.send({ embeds: [embeds[0]] });
                     }
+        }
+        catch (error) {
+            await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+            console.log(error);
+        }
+    }
+
+    // Receive
+    else if (command === 'receive') {
+        try {
+            const findGift = await giftbox.findOne({ where: { playerid: message.author.id, giftid: args[0] } });
+            if (findGift) {
+                const findBee = await beelist.findOne({ where: { beeid: findGift.get('beeid') } });
+                const findplayerbees = await playerbees.findAll({ where: { playerid: message.author.id } });
+                if (await playerbees.count({ where: { playerid: message.author.id } }) + 1 <= findplayer.get('beeSlots')) {
+                    await message.channel.send(`You received the ${capitaliseWords(findBee.get('beeName'))}!`);
+                    let nextIBI = 0;
+                    if (findplayerbees.length > 0) {
+                        let currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
+                        while (nextIBI === currentIBI) {
+                            nextIBI++;
+                            if (findplayerbees[nextIBI] != undefined) {
+                                currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
+                            }
+                        }
+                    }
+                    await playerbees.create({
+                        playerid: message.author.id,
+                        IBI: nextIBI,
+                        beeid: findGift.get('beeid'),
+                        beeLevel: 1,
+                        beeTier: findGift.get('beeTier'),
+                        tierUpMod: 1,
+                        beePower: findGift.get('beePower'),
+                        beeHealth: 100,
+                    });
+                    await findGift.destroy();
+                }
+                else {
+                    await message.channel.send('You don\'t have enough bee slots for another bee!');
+                }
+            }
+            else {
+                await message.channel.send('There isn\'t a bee with this gift id!');
+            }
         }
         catch (error) {
             await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
