@@ -1,4 +1,3 @@
-/* eslint-disable no-prototype-builtins */
 // Require the necessary classes for the bot to function
 const fs = require('node:fs');
 const path = require('node:path');
