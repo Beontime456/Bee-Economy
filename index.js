@@ -1314,15 +1314,75 @@ client.on('messageCreate', async (message) => {
         else if (command === 'recipes') {
             try {
                 let text = '';
-                const recipeItems = items.findAll({ where: { findType: 'craft' } });
+                const recipeItems = await items.findAll({ where: { findType: 'craft' } });
                 for (let count = 0; count < recipeItems.length; count++) {
-                    const nextRecipe = await recipes.findOne({ where: { itemid: recipeItems[count].dataValues.itemid } });
+                    const nextRecipe = await recipes.findOne({ where: { itemName: recipeItems[count].dataValues.itemName } });
                     const nextRecipeReqs = nextRecipe.get('itemReqs');
-                    const recipeKeys = Object.keys(nextRecipeReqs.itemReqs);
-                    const recipeVals = Object.values(nextRecipeReqs.rewards);
-                    text += `\n**${recipeItems[count].datavalues.itemName}**: \n`;
+                    const recipeKeys = Object.keys(nextRecipeReqs.ingredients);
+                    const recipeVals = Object.values(nextRecipeReqs.ingredients);
+                    text += `\n**${capitaliseWords(recipeItems[count].dataValues.itemName)}** \n`;
                     for (let i = 0; i < recipeVals.length; i++) {
+                        text += `${recipeVals[i]} ${recipeKeys[i]}, `;
                     }
+                    text = text.slice(0, text.length - 2) + '\n';
+                }
+                const recipeEmbed = new EmbedBuilder()
+                    .setColor(0xffe521)
+                    .setAuthor({ name: 'Crafting Recipes' })
+                    .setFooter({ text: beeFact() })
+                    .addFields({ name: 'Recipes', value: text });
+                await message.channel.send({ embeds: [recipeEmbed] });
+            }
+            catch (error) {
+                await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                console.log(error);
+            }
+        }
+
+        // Craft
+        else if (command === 'craft') {
+            try {
+                let lastArg = parseInt(args[args.length - 1]);
+                if (typeof lastArg === 'number' && Number.isNaN(lastArg) != true) {
+                    args.pop();
+                }
+                else {
+                    lastArg = 1;
+                }
+                const recipe = await recipes.findOne({ where: { itemName: args.join(' ') } });
+                if (recipe) {
+                    const RecipeReqs = recipe.get('itemReqs');
+                    const recipeKeys = Object.keys(RecipeReqs.ingredients);
+                    const recipeVals = Object.values(RecipeReqs.ingredients);
+                    for (let i = 0; i < recipeKeys.length; i++) {
+                        const item = await items.findOne({ where: { itemName: recipeKeys[i] } });
+                        const playerItem = await inventory.findOne({ where: { itemid: item.get('itemid'), playerid: message.author.id } });
+                        if (!playerItem) {
+                            await message.channel.send(`You do not have enough ${capitaliseWords(item.get('itemName'))}s!`);
+                            return;
+                        }
+                        else if (playerItem && playerItem.get('itemAmount') < recipeVals[i] * lastArg) {
+                            await message.channel.send(`You do not have enough ${capitaliseWords(item.get('itemName'))}s!`);
+                            return;
+                        }
+                        await playerItem.update({ itemAmount: playerItem.get('itemAmount') - recipeVals[i] * lastArg });
+                    }
+                    const craftedItem = await items.findOne({ where: { itemName: recipe.get('itemName') } });
+                    const craftedItemCheck = await inventory.findOne({ where: { itemid: craftedItem.get('itemid'), playerid: message.author.id } });
+                    if (craftedItemCheck) {
+                        craftedItemCheck.update({ itemAmount: craftedItemCheck.get('itemAmount') + lastArg });
+                    }
+                    else {
+                        inventory.create({
+                            playerid: message.author.id,
+                            itemid: craftedItem.get('itemid'),
+                            itemAmount: lastArg,
+                        });
+                    }
+                    await message.channel.send(`Crafted ${lastArg} ${craftedItem.get('itemName')}!`);
+                }
+                else {
+                    await message.channel.send('There isn\'t a recipe with this item!');
                 }
             }
             catch (error) {
