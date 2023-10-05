@@ -11,6 +11,7 @@ const beeList = require('./models/beelist.js')(sequelize, Sequelize.DataTypes);
 const itemList = require('./models/items.js')(sequelize, Sequelize.DataTypes);
 const areaList = require('./models/area.js')(sequelize, Sequelize.DataTypes);
 const questList = require('./models/quests.js')(sequelize, Sequelize.DataTypes);
+const recipeList = require('./models/recipes.js')(sequelize, Sequelize.DataTypes);
 require('./models/inventory.js')(sequelize, Sequelize.DataTypes);
 require('./models/playerinformation.js')(sequelize, Sequelize.DataTypes);
 require('./models/playerbees.js')(sequelize, Sequelize.DataTypes);
@@ -30,7 +31,7 @@ sequelize.sync({ force }).then(async () => {
     const items = [
         itemList.upsert({ itemName: 'flower petal', sellPrice: 100, findType: 'backyard', findChance: 25 }),
         itemList.upsert({ itemName: 'clash royale king', sellPrice: 1, findType: 'shop', findChance: 0 }),
-        itemList.upsert({ itemName: 'ancient shard', sellPrice: 10000, findType: 'shop', findChance: 0 }),
+        itemList.upsert({ itemName: 'ancient shard', sellPrice: 10000, findType: 'craft', findChance: 0 }),
     ];
     const areas = [
         areaList.upsert({ areaName: 'backyard' }),
@@ -51,13 +52,17 @@ sequelize.sync({ force }).then(async () => {
         areaList.upsert({ areaName: 'badlands' }),
     ];
     const quests = [
-        questList.upsert({ questid: 0, questInfo: '{ "name": "Humble Beginnings", "description": "You gotta start somewhere. Get familiar with your bees before leaving the backyard.", "requirements": { "money": 5000, "flower petal": 10 }, "rewards": { "money": 2500, "bee": "Barbeecue", "bee slots": 1 } }' }),
+        questList.upsert({ questid: 0, questInfo: { 'name': 'Humble Beginnings', 'description': 'You gotta start somewhere. Get familiar with your bees before leaving the backyard.', 'requirements': { 'money': 5000, 'flower petal': 10 }, 'rewards': { 'money': 2500, 'bee': 'Barbeecue', 'bee slots': 1 } } }),
+    ];
+    const recipes = [
+        recipeList.upsert({ itemName: 'ancient shard', itemReqs: { 'ingredients': { 'flower petal': 10, 'clash royale king': 15 } } }),
     ];
 
     await Promise.all(bees);
     await Promise.all(items);
     await Promise.all(areas);
     await Promise.all(quests);
+    await Promise.all(recipes);
 
     console.log('Database synced');
 

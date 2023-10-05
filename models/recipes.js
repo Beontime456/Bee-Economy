@@ -1,10 +1,10 @@
 module.exports = (sequelize, DataTypes) => {
-    return sequelize.define('quests', {
-        questid: {
+    return sequelize.define('recipes', {
+        itemName: {
             type: DataTypes.INTEGER,
             primaryKey: true,
         },
-        questInfo: DataTypes.JSONB,
+        itemReqs: DataTypes.JSONB,
     }, {
             timestamps: false,
         });
