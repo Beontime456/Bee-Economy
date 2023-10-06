@@ -48,6 +48,7 @@ const playerbees = require('./models/playerbees.js')(sequelize, Sequelize.DataTy
 const quests = require('./models/quests.js')(sequelize, Sequelize.DataTypes);
 const giftbox = require('./models/claimbox.js')(sequelize, Sequelize.DataTypes);
 const recipes = require('./models/recipes.js')(sequelize, Sequelize.DataTypes);
+const team = require('./models/team.js')(sequelize, Sequelize.DataTypes);
 playerinformation.sync();
 playerbees.sync();
 beelist.sync();
@@ -57,6 +58,7 @@ area.sync();
 quests.sync();
 giftbox.sync();
 recipes.sync();
+team.sync();
 
 // Initialise a prefix for the bot to see message commands
 const prefix = 'bee ';
@@ -207,6 +209,9 @@ client.on('messageCreate', async (message) => {
                 lastAdvClaim: Date.now(),
                 area: 'backyard',
                 currentQuest: 0,
+            });
+            await team.create({
+                playerid: message.author.id,
             });
             await message.channel.send('Congrats, you have now started!');
             return;
@@ -1383,6 +1388,80 @@ client.on('messageCreate', async (message) => {
                 }
                 else {
                     await message.channel.send('There isn\'t a recipe with this item!');
+                }
+            }
+            catch (error) {
+                await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                console.log(error);
+            }
+        }
+
+        // Team
+        else if (command === 'team') {
+            try {
+                const beeTeam = await team.findOne({ where: { playerid: message.author.id } });
+                const subCommand = args.shift();
+                if (subCommand === 'add') {
+                    if (typeof parseInt(args[0]) === 'number' && Number.isNaN(args[0]) != true) {
+                        for (const key in beeTeam.dataValues) {
+                            if (key === 'playerid' || key === 'id') { continue; }
+                            else {
+                                const findBee = await playerbees.findOne({ where: { IBI: beeTeam.dataValues[key] } });
+                                if (findBee) { continue; }
+                                else {
+                                    const findPlayerBee = await playerbees.findOne({ where: { playerid: message.author.id, IBI: args[0] } });
+                                    if (findPlayerBee) {
+                                        beeTeam.update({ key: args[0] });
+                                        await message.channel.send(`Assigned the ${findPlayerBee.get('beeName')} to your team!`);
+                                        return;
+                                    }
+                                    else {
+                                        await message.channel.send('You don\'t have a bee with this IBI!');
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                        await message.channel.send('Your party is full! Remove a bee from your party first.');
+                    }
+                    else {
+                        await message.channel.send('Please supply an IBI.');
+                    }
+                }
+                else if (subCommand === 'remove') {
+                    if (typeof parseInt(args[0]) === 'number' && Number.isNaN(args[0]) != true) {
+                        const foundBee = beeTeam.get(args[0]);
+                        if (foundBee) {
+                            beeTeam[args[0]].update(null);
+                            await message.channel.send(`Unassgined the bee in party slot ${args[0]} from the party.`);
+                        }
+                        else {
+                            await message.channel.send('Please provide a valid team slot!');
+                        }
+                    }
+                    else {
+                        await message.channel.send('Please give a team slot to remove a bee from.');
+                    }
+                }
+                else {
+                    const teamEmbed = new EmbedBuilder()
+                        .setColor(0xffe521)
+                        .setAuthor({ name: `${message.author.displayName}'s team`, iconURL: message.author.displayAvatarURL() })
+                        .setFooter({ text: beeFact() });
+                    for (const key in beeTeam.dataValues) {
+                        if (key === 'playerid' || key === 'id') { continue; }
+                        else {
+                            const findBee = await playerbees.findOne({ where: { IBI: beeTeam.dataValues[key] } });
+                            if (findBee) {
+                                const findBeeInfo = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
+                                teamEmbed.addFields({ name: `\`IBI: ${findBee.get('IBI')}\` ${findBeeInfo.get('beeName')} (${findBeeInfo.get('beeGrade')})`, value: `Level: ${findBee.get('beeLevel')} \nTier: ${findBee.get('beeTier')}`, inline: true });
+                            }
+                            else {
+                                teamEmbed.addFields({ name: 'Empty', value: '*No info*', inline: true });
+                            }
+                        }
+                    }
+                    await message.channel.send({ embeds: [teamEmbed] });
                 }
             }
             catch (error) {
