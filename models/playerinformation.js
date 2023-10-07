@@ -11,6 +11,7 @@ module.exports = (sequelize, DataTypes) => {
         lastAdvClaim: DataTypes.INTEGER,
         area: DataTypes.STRING,
         currentQuest: DataTypes.INTEGER,
+        beeTeam: DataTypes.TEXT,
     }, {
             timestamps: false,
         });
