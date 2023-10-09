@@ -8,6 +8,7 @@ module.exports = (sequelize, DataTypes) => {
         tierUpMod: DataTypes.INTEGER,
         beePower: DataTypes.INTEGER,
         beeHealth: DataTypes.INTEGER,
+        skills: DataTypes.TEXT,
     }, {
             timestamps: false,
         });

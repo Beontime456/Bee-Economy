@@ -71,8 +71,7 @@ function beeFact() {
     'Worker bees communicate with dancing or shaking their bodies.', 'A bee flaps it\'s wings 200x per second.', 'Bees can experience PTSD-like symptoms.', 'Bees recognize different human faces.',
     'Bees like humans who take care of them!', 'Bees are usually optimistic when successfully foraging, but can become depressed if momentarily trapped by a predatory spider.',
     'The Megachilidae Bee family has the most diverse nesting habits. They construct hives using mud, gravel, resin, plant fiber, wood pulp, and leaf pulp.', 'The Megachilidae bee family builds their nests in cavities, mainly in rotting wood, using leaves.',
-    'The Andrenidae bee family is collectively known as mining bees. It consists of solitary bees that nest on the ground!', 'Halictidae bees are all ground-nesting bees with extremely diverse levels of sociality. Some species can even switch between being social or solitary depending on their environment.',
-    'The Halictidae family also known as \'Sweet\' bees, because of their small size (4-8mm) these insects comprise some groups which are metallic in appearance.', 'The Stenotritidae bee family is the smallest of the seven bee families with 2 subfamilies and 21 species. The family is only found in Australia and closely related to Colletidae.'];
+    'The Andrenidae bee family is collectively known as mining bees. It consists of solitary bees that nest on the ground!'];
     const randomFact = Math.floor(Math.random() * 20);
     return beeFacts[randomFact];
 }
@@ -93,9 +92,8 @@ const gradeMultipliers = {
 const areaMap = {
     1: [265, 135],
     2: [205, 125],
-    3: [265, 235],
-    4: [285, 105],
-    5: [180, 50],
+    3: [285, 105],
+    4: [180, 50],
 };
 
 
@@ -682,7 +680,8 @@ client.on('messageCreate', async (message) => {
                     const findBee = await playerbees.findOne({ where: { playerid: message.author.id, IBI: lastArg } });
                     if (findBee != null) {
                         if (beeTeam.includes(findBee.get('IBI'))) {
-                            beeTeam.slice(findBee.get('IBI'), 1);
+                            const teamIndex = beeTeam.indexOf(findBee.get('IBI'));
+                            beeTeam.splice(teamIndex, 1);
                         }
                         beeTeam = JSON.stringify(beeTeam);
                         const findBeeName = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
@@ -1471,6 +1470,27 @@ client.on('messageCreate', async (message) => {
             catch (error) {
                 await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
                 console.log(error);
+            }
+        }
+
+        // Dojo
+        else if (command === 'dojo') {
+            const subCommand = args.shift();
+            if (subCommand === 'train') {
+                const selectedBee = args[0];
+                const skillType = args[1];
+            }
+            else {
+                const currentDojoStatus = JSON.parse(findplayer.get('dojoStatus'));
+                let text;
+                if (currentDojoStatus.length === 0) { text = '**No bee currently in training**'; }
+                const dojoEmbed = new EmbedBuilder()
+                        .setColor(0xffe521)
+                        .setAuthor({ name: 'The Dojo' })
+                        .addFields({ name: 'Welcome to the dojo!',
+                        value: `Here, you can give bees new skills or improve existing skills! \nThese skills can provide passive buffs or special abilities that can be activated in battle. \nBees take time to train. \nOnly one bee can be trained at a time. \n\nCurrent training status: \n${text}` })
+                        .setFooter({ text: beeFact() });
+                await message.channel.send({ embeds: [dojoEmbed] });
             }
         }
 

@@ -12,6 +12,7 @@ const itemList = require('./models/items.js')(sequelize, Sequelize.DataTypes);
 const areaList = require('./models/area.js')(sequelize, Sequelize.DataTypes);
 const questList = require('./models/quests.js')(sequelize, Sequelize.DataTypes);
 const recipeList = require('./models/recipes.js')(sequelize, Sequelize.DataTypes);
+const skillList = require('./models/skills.js')(sequelize, Sequelize.DataTypes);
 require('./models/inventory.js')(sequelize, Sequelize.DataTypes);
 require('./models/playerinformation.js')(sequelize, Sequelize.DataTypes);
 require('./models/playerbees.js')(sequelize, Sequelize.DataTypes);
@@ -36,7 +37,6 @@ sequelize.sync({ force }).then(async () => {
     const areas = [
         areaList.upsert({ areaName: 'backyard' }),
         areaList.upsert({ areaName: 'pond' }),
-        areaList.upsert({ areaName: 'beach' }),
         areaList.upsert({ areaName: 'farm' }),
         areaList.upsert({ areaName: 'city' }),
         areaList.upsert({ areaName: 'lake' }),
@@ -57,12 +57,21 @@ sequelize.sync({ force }).then(async () => {
     const recipes = [
         recipeList.upsert({ itemName: 'ancient shard', itemReqs: { 'ingredients': { 'flower petal': 10, 'clash royale king': 15 } } }),
     ];
+    const skills = [
+        skillList.upsert({ skillName: 'bee spin', skillType: 'active', skillDetails: { 'damage': 20, 'target': 'enemy', 'targetType': 'single' } }),
+        skillList.upsert({ skillName: 'bee swarm', skillType: 'active', skillDetails: { 'damage': 50, 'target': 'enemy', 'targetType': 'all' } }),
+        skillList.upsert({ skillName: 'honey', skillType: 'active', skillDetails: { 'healing': 60, 'target': 'team', 'targetType': 'single' } }),
+        skillList.upsert({ skillName: 'gun', skillType: 'active', skillDetails: { 'damage': 69420, 'target': 'enemy', 'targetType': 'single' } }),
+        skillList.upsert({ skillName: 'energetic', skillType: 'passive', skillDetails: { 'power': 1.2 } }),
+        skillList.upsert({ skillName: 'angry', skillType: 'passive', skillDetails: { 'damage': 1.1 } }),
+    ];
 
     await Promise.all(bees);
     await Promise.all(items);
     await Promise.all(areas);
     await Promise.all(quests);
     await Promise.all(recipes);
+    await Promise.all(skills);
 
     console.log('Database synced');
 
