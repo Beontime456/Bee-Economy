@@ -48,6 +48,7 @@ const playerbees = require('./models/playerbees.js')(sequelize, Sequelize.DataTy
 const quests = require('./models/quests.js')(sequelize, Sequelize.DataTypes);
 const giftbox = require('./models/claimbox.js')(sequelize, Sequelize.DataTypes);
 const recipes = require('./models/recipes.js')(sequelize, Sequelize.DataTypes);
+const skills = require('./models/skills.js')(sequelize, Sequelize.DataTypes);
 playerinformation.sync();
 playerbees.sync();
 beelist.sync();
@@ -75,16 +76,23 @@ function beeFact() {
     const randomFact = Math.floor(Math.random() * beeFacts.length);
     return beeFacts[randomFact];
 }
-async function findBeeCommand(beeGrade, beeArea) {
-    const findableBees = await beelist.findAll({ where: { findType: beeArea, beeGrade: beeGrade } });
-    return findableBees[Math.floor(Math.random() * findableBees.length)];
+async function findCommand(grade, beeArea, type) {
+    if (type === 'bee') {
+        const findableBees = await beelist.findAll({ where: { findType: beeArea, beeGrade: grade } });
+        return findableBees[Math.floor(Math.random() * findableBees.length)];
+    }
+    else if (type === 'skill') {
+        const findableSkills = await skills.findAll({ where: { skillRarity: grade } });
+        return findableSkills[Math.floor(Math.random() * findableSkills.length)];
+    }
 }
-async function msToHrs(duration) {
+async function msToTime(duration) {
     const seconds = Math.floor((duration / 1000) % 60),
-    minutes = Math.floor((duration / (1000 * 60)) % 60),
-    hours = Math.floor((duration / (1000 * 60 * 60)) % 24);
+      minutes = Math.floor((duration / (1000 * 60)) % 60),
+      hours = Math.floor((duration / (1000 * 60 * 60)) % 24);
 
-}
+    return hours + ' hours ' + minutes + ' minutes ' + seconds + ' seconds';
+  }
 const gradeMultipliers = {
     'F': 0.75,
     'E': 0.85,
@@ -780,25 +788,25 @@ client.on('messageCreate', async (message) => {
                         while (beeFound === undefined) {
                             const gradeNumber = Math.floor(Math.random() * 101);
                             if (gradeNumber <= gradeRarities['F']) {
-                                beeFound = await findBeeCommand('F', findplayer.get('area'));
+                                beeFound = await findCommand('F', findplayer.get('area'), 'bee');
                             }
                             else if (gradeNumber > gradeRarities['F'] && gradeNumber <= gradeRarities['E']) {
-                                beeFound = await findBeeCommand('E', findplayer.get('area'));
+                                beeFound = await findCommand('E', findplayer.get('area'), 'bee');
                             }
                             else if (gradeNumber > gradeRarities['E'] && gradeNumber <= gradeRarities['D']) {
-                                beeFound = await findBeeCommand('D', findplayer.get('area'));
+                                beeFound = await findCommand('D', findplayer.get('area'), 'bee');
                             }
                             else if (gradeNumber > gradeRarities['D'] && gradeNumber <= gradeRarities['C']) {
-                                beeFound = await findBeeCommand('C', findplayer.get('area'));
+                                beeFound = await findCommand('C', findplayer.get('area'), 'bee');
                             }
                             else if (gradeNumber > gradeRarities['C'] && gradeNumber <= gradeRarities['B']) {
-                                beeFound = await findBeeCommand('B', findplayer.get('area'));
+                                beeFound = await findCommand('B', findplayer.get('area'), 'bee');
                             }
                             else if (gradeNumber > gradeRarities['B'] && gradeNumber <= gradeRarities['A']) {
-                                beeFound = await findBeeCommand('A', findplayer.get('area'));
+                                beeFound = await findCommand('A', findplayer.get('area'), 'bee');
                             }
                             else if (gradeNumber === gradeRarities['S']) {
-                                beeFound = await findBeeCommand('S', findplayer.get('area'));
+                                beeFound = await findCommand('S', findplayer.get('area'), 'bee');
                             }
                         }
                         const findembed = new EmbedBuilder()
@@ -1497,7 +1505,6 @@ client.on('messageCreate', async (message) => {
                 const selectedBee = args[0];
                 const skillType = args[1];
                 const findBee = await playerbees.findOne({ where: { playerid: message.author.id, IBI: selectedBee } });
-                const findBeeInfo = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
                 if (currentDojoStatus.length > 0) {
                     await message.channel.send('You already have a bee training in the dojo!');
                     return;
@@ -1506,22 +1513,66 @@ client.on('messageCreate', async (message) => {
                     await message.channel.send('Please use a valid IBI.');
                     return;
                 }
+                const findBeeInfo = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
                 if (skillType.toLowerCase() != 'passive' && skillType.toLowerCase() != 'active') {
                     await message.channel.send('Please choose a valid skill type to learn (`passive or active`)');
                     return;
                 }
-                await message.channel.send(`Sent your ${capitaliseWords(findBeeInfo.get('beeName'))} to the dojo to learn a ${args[1].toLowerCase()} skill!`);
+                if (skillType === 'active') {
+                    await message.channel.send(`Sent your ${capitaliseWords(findBeeInfo.get('beeName'))} to the dojo to learn an ${args[1].toLowerCase()} skill!`);
+                }
+                else {
+                    await message.channel.send(`Sent your ${capitaliseWords(findBeeInfo.get('beeName'))} to the dojo to learn a ${args[1].toLowerCase()} skill!`);
+                }
                 currentDojoStatus.push(args[0]);
                 currentDojoStatus.push(args[1]);
-                currentDojoStatus.push(Date.now());
+                currentDojoStatus.push(Date.now() + 7200000);
                 currentDojoStatus = JSON.stringify(currentDojoStatus);
                 findplayer.update({ dojoStatus: currentDojoStatus });
+            }
+            else if (subCommand === 'claim') {
+                let skillFound = undefined;
+                while (skillFound === undefined) {
+                    const gradeNumber = Math.floor(Math.random() * 101);
+                    if (gradeNumber <= gradeRarities['F']) {
+                        skillFound = await findCommand('F', findplayer.get('area'), 'skill');
+                    }
+                    else if (gradeNumber > gradeRarities['F'] && gradeNumber <= gradeRarities['E']) {
+                        skillFound = await findCommand('E', findplayer.get('area'), 'skill');
+                    }
+                    else if (gradeNumber > gradeRarities['E'] && gradeNumber <= gradeRarities['D']) {
+                        skillFound = await findCommand('D', findplayer.get('area'), 'skill');
+                    }
+                    else if (gradeNumber > gradeRarities['D'] && gradeNumber <= gradeRarities['C']) {
+                        skillFound = await findCommand('C', findplayer.get('area'), 'skill');
+                    }
+                    else if (gradeNumber > gradeRarities['C'] && gradeNumber <= gradeRarities['B']) {
+                        skillFound = await findCommand('B', findplayer.get('area'), 'skill');
+                    }
+                    else if (gradeNumber > gradeRarities['B'] && gradeNumber <= gradeRarities['A']) {
+                        skillFound = await findCommand('A', findplayer.get('area'), 'skill');
+                    }
+                    else if (gradeNumber === gradeRarities['S']) {
+                        skillFound = await findCommand('S', findplayer.get('area'), 'skill');
+                    }
+                }
+                const findBee = await playerbees.findOne({ where: { playerid: message.author.id, IBI: currentDojoStatus[0] } });
+                const findBeeInfo = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
+                const skillembed = new EmbedBuilder()
+                    .setColor(0xffe521)
+                    .setAuthor({ name: `${message.author.displayName}'s bee's training`, iconURL: message.author.displayAvatarURL() })
+                    .setFooter({ text: beeFact() })
+                    .addFields({ name: `Your ${capitaliseWords(findBeeInfo.get('beeName'))} has learned a new skill!`, value: `${skillFound.get('skillName')}` });
+                await message.channel.send({ embeds: [skillembed] });
             }
             else {
                 let text;
                 if (currentDojoStatus.length === 0) { text = '**No bee currently in training**'; }
+                else if (currentDojoStatus[2] - Date.now() > 0) {
+                    text = `**Training - ${await msToTime(currentDojoStatus[2] - Date.now())}**`;
+                }
                 else {
-
+                    text = '**Training complete! Ready to claim.**';
                 }
                 const dojoEmbed = new EmbedBuilder()
                         .setColor(0xffe521)
