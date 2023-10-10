@@ -58,12 +58,17 @@ sequelize.sync({ force }).then(async () => {
         recipeList.upsert({ itemName: 'ancient shard', itemReqs: { 'ingredients': { 'flower petal': 10, 'clash royale king': 15 } } }),
     ];
     const skills = [
-        skillList.upsert({ skillName: 'bee spin', skillType: 'active', skillDetails: { 'damage': 20, 'target': 'enemy', 'targetType': 'single' } }),
-        skillList.upsert({ skillName: 'bee swarm', skillType: 'active', skillDetails: { 'damage': 50, 'target': 'enemy', 'targetType': 'all' } }),
-        skillList.upsert({ skillName: 'honey', skillType: 'active', skillDetails: { 'healing': 60, 'target': 'team', 'targetType': 'single' } }),
-        skillList.upsert({ skillName: 'gun', skillType: 'active', skillDetails: { 'damage': 69420, 'target': 'enemy', 'targetType': 'single' } }),
-        skillList.upsert({ skillName: 'energetic', skillType: 'passive', skillDetails: { 'power': 1.2 } }),
-        skillList.upsert({ skillName: 'angry', skillType: 'passive', skillDetails: { 'damage': 1.1 } }),
+        skillList.upsert({ skillName: 'bee spin', skillRarity: 'D', skillDetails: { 'type': 'active', 'damage': 30, 'target': 'enemy', 'targetType': 'single', 'cooldown': 3 } }),
+        skillList.upsert({ skillName: 'bee swarm', skillRarity: 'E', skillDetails: { 'type': 'active', 'damage': 10, 'target': 'enemy', 'targetType': 'all', 'cooldown': 2 } }),
+        skillList.upsert({ skillName: 'healer', skillRarity: 'B', skillDetails: { 'type': 'active', 'healing': 40, 'target': 'team', 'targetType': 'single', 'cooldown': 4 } }),
+        skillList.upsert({ skillName: 'gun', skillRarity: 'S', skillDetails: { 'type': 'active', 'damage': 69420, 'target': 'enemy', 'targetType': 'single', 'cooldown': 0 } }),
+        skillList.upsert({ skillName: 'resilient', skillRarity: 'C', skillDetails: { 'type': 'passive', 'resistance': 1.1 } }),
+        skillList.upsert({ skillName: 'angry', skillRarity: 'C', skillDetails: { 'type': 'passive', 'damage': 1.1 } }),
+        skillList.upsert({ skillName: 'tough', skillRarity: 'C', skillDetails: { 'type': 'passive', 'health': 1.1 } }),
+        skillList.upsert({ skillName: 'knight', skillRarity: 'C', skillDetails: { 'type': 'active', 'resistance': 1.3, 'target': 'self', 'cooldown': 10 } }),
+        skillList.upsert({ skillName: 'pollinator', skillRarity: 'A', skillDetails: { 'type': 'passive', 'teamStats': 1.05 } }),
+        skillList.upsert({ skillName: 'forager', skillRarity: 'B', skillDetails: { 'type': 'passive', 'rewardBoost': 1.2 } }),
+        skillList.upsert({ skillName: 'architect', skillRarity: 'A', skillDetails: { 'type': 'hybrid', 'damage': 40, 'target': 'enemy', 'targetType': 'single', 'cooldown': 3, 'health': 1.2 } }),
     ];
 
     await Promise.all(bees);

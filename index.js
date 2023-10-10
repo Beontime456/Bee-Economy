@@ -72,12 +72,18 @@ function beeFact() {
     'Bees like humans who take care of them!', 'Bees are usually optimistic when successfully foraging, but can become depressed if momentarily trapped by a predatory spider.',
     'The Megachilidae Bee family has the most diverse nesting habits. They construct hives using mud, gravel, resin, plant fiber, wood pulp, and leaf pulp.', 'The Megachilidae bee family builds their nests in cavities, mainly in rotting wood, using leaves.',
     'The Andrenidae bee family is collectively known as mining bees. It consists of solitary bees that nest on the ground!'];
-    const randomFact = Math.floor(Math.random() * 20);
+    const randomFact = Math.floor(Math.random() * beeFacts.length);
     return beeFacts[randomFact];
 }
 async function findBeeCommand(beeGrade, beeArea) {
     const findableBees = await beelist.findAll({ where: { findType: beeArea, beeGrade: beeGrade } });
     return findableBees[Math.floor(Math.random() * findableBees.length)];
+}
+async function msToHrs(duration) {
+    const seconds = Math.floor((duration / 1000) % 60),
+    minutes = Math.floor((duration / (1000 * 60)) % 60),
+    hours = Math.floor((duration / (1000 * 60 * 60)) % 24);
+
 }
 const gradeMultipliers = {
     'F': 0.75,
@@ -88,6 +94,15 @@ const gradeMultipliers = {
     'A': 1.5,
     'S': 1.75,
     'SS': 2,
+};
+const gradeRarities = {
+    'F': 15,
+    'E': 45,
+    'D': 70,
+    'C': 85,
+    'B': 95,
+    'A': 99,
+    'S': 100,
 };
 const areaMap = {
     1: [265, 135],
@@ -206,6 +221,7 @@ client.on('messageCreate', async (message) => {
                 area: 'backyard',
                 currentQuest: 0,
                 beeTeam: '[]',
+                dojoStatus: '[]',
             });
             await message.channel.send('Congrats, you have now started!');
             return;
@@ -763,25 +779,25 @@ client.on('messageCreate', async (message) => {
                         let beeFound = undefined;
                         while (beeFound === undefined) {
                             const gradeNumber = Math.floor(Math.random() * 101);
-                            if (gradeNumber <= 15) {
+                            if (gradeNumber <= gradeRarities['F']) {
                                 beeFound = await findBeeCommand('F', findplayer.get('area'));
                             }
-                            else if (gradeNumber > 15 && gradeNumber <= 45) {
+                            else if (gradeNumber > gradeRarities['F'] && gradeNumber <= gradeRarities['E']) {
                                 beeFound = await findBeeCommand('E', findplayer.get('area'));
                             }
-                            else if (gradeNumber > 45 && gradeNumber <= 70) {
+                            else if (gradeNumber > gradeRarities['E'] && gradeNumber <= gradeRarities['D']) {
                                 beeFound = await findBeeCommand('D', findplayer.get('area'));
                             }
-                            else if (gradeNumber > 70 && gradeNumber <= 85) {
+                            else if (gradeNumber > gradeRarities['D'] && gradeNumber <= gradeRarities['C']) {
                                 beeFound = await findBeeCommand('C', findplayer.get('area'));
                             }
-                            else if (gradeNumber > 85 && gradeNumber <= 95) {
+                            else if (gradeNumber > gradeRarities['C'] && gradeNumber <= gradeRarities['B']) {
                                 beeFound = await findBeeCommand('B', findplayer.get('area'));
                             }
-                            else if (gradeNumber > 95 && gradeNumber <= 99) {
+                            else if (gradeNumber > gradeRarities['B'] && gradeNumber <= gradeRarities['A']) {
                                 beeFound = await findBeeCommand('A', findplayer.get('area'));
                             }
-                            else if (gradeNumber === 100) {
+                            else if (gradeNumber === gradeRarities['S']) {
                                 beeFound = await findBeeCommand('S', findplayer.get('area'));
                             }
                         }
@@ -1476,14 +1492,37 @@ client.on('messageCreate', async (message) => {
         // Dojo
         else if (command === 'dojo') {
             const subCommand = args.shift();
+            let currentDojoStatus = JSON.parse(findplayer.get('dojoStatus'));
             if (subCommand === 'train') {
                 const selectedBee = args[0];
                 const skillType = args[1];
+                const findBee = await playerbees.findOne({ where: { playerid: message.author.id, IBI: selectedBee } });
+                const findBeeInfo = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
+                if (currentDojoStatus.length > 0) {
+                    await message.channel.send('You already have a bee training in the dojo!');
+                    return;
+                }
+                if (!findBee) {
+                    await message.channel.send('Please use a valid IBI.');
+                    return;
+                }
+                if (skillType.toLowerCase() != 'passive' && skillType.toLowerCase() != 'active') {
+                    await message.channel.send('Please choose a valid skill type to learn (`passive or active`)');
+                    return;
+                }
+                await message.channel.send(`Sent your ${capitaliseWords(findBeeInfo.get('beeName'))} to the dojo to learn a ${args[1].toLowerCase()} skill!`);
+                currentDojoStatus.push(args[0]);
+                currentDojoStatus.push(args[1]);
+                currentDojoStatus.push(Date.now());
+                currentDojoStatus = JSON.stringify(currentDojoStatus);
+                findplayer.update({ dojoStatus: currentDojoStatus });
             }
             else {
-                const currentDojoStatus = JSON.parse(findplayer.get('dojoStatus'));
                 let text;
                 if (currentDojoStatus.length === 0) { text = '**No bee currently in training**'; }
+                else {
+
+                }
                 const dojoEmbed = new EmbedBuilder()
                         .setColor(0xffe521)
                         .setAuthor({ name: 'The Dojo' })

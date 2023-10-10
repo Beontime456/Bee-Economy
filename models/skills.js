@@ -6,7 +6,7 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true,
         },
         skillName: DataTypes.STRING,
-        skillType: DataTypes.ENUM('passive', 'active'),
+        skillRarity: DataTypes.STRING,
         skillDetails: DataTypes.JSON,
     }, {
         timestamps: false,
