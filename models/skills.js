@@ -7,6 +7,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         skillName: DataTypes.STRING,
         skillRarity: DataTypes.STRING,
+        skillType: DataTypes.STRING,
         skillDetails: DataTypes.JSON,
     }, {
         timestamps: false,
