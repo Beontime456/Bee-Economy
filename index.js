@@ -1611,6 +1611,9 @@ client.on('messageCreate', async (message) => {
             }
         }
 
+        // Fight
+        else if (command === 'fight') {}
+
         // Master Commands - Tester Commands ONLY
         else if (command === 'mc') {
             try {
