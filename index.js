@@ -317,31 +317,33 @@ client.on('messageCreate', async (message) => {
                 if (!args[0]) {
                     try {
                         const findPlayerBees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
-                        let pages = Math.ceil(findPlayerBees.length / 6);
+                        let pages = Math.ceil(findPlayerBees.length / 3);
                         if (pages === 0) {
                             pages = 1;
                         }
                         const embeds = [];
                         for (let page = 0; page < pages; page++) {
                             const beeFields = [];
-                            const startIndex = page * 6;
-                            const beesOnPage = findPlayerBees.slice(startIndex, startIndex + 6);
+                            const startIndex = page * 3;
+                            const beesOnPage = findPlayerBees.slice(startIndex, startIndex + 3);
                             const beeembed = new EmbedBuilder()
                                 .setColor(0xffe521)
                                 .setAuthor({ name: `${message.author.displayName}'s bees - Page ${page + 1}`, iconURL: message.author.displayAvatarURL() })
                                 .setFooter({ text: beeFact() })
                                 .addFields(
-                                    { name: 'Bees', value: `These are all your bees. They will do various things for you, and are very useful to you. \nIBI stands for Individual Bee Identifier and should be used when selling or doing other actions on specific bees. \n\nBee slots: ${await playerbees.count({ where: { playerid: message.author.id } })}/${findplayer.get('beeSlots')}` },
+                                    { name: 'Bees', value: `These are all your bees. They are curcial for progression. \nIBI stands for Individual Bee Identifier and is used to distinguish specific bees from each other. \n\nBee slots: ${await playerbees.count({ where: { playerid: message.author.id } })}/${findplayer.get('beeSlots')}` },
                                 );
                             for (let count = 0; count < beesOnPage.length; count++) {
                                 const nextBee = await beelist.findOne({ where: { beeid: beesOnPage[count].dataValues.beeid } });
                                 const nextBeeSkills = JSON.parse(beesOnPage[count].dataValues.skills);
-                                let skillText;
-                                for (const skill in nextBeeSkills) {
-                                    const findSkill = await skills.findOne({ where: { skillid: nextBeeSkills[skill] } });
-                                    skillText += `\n${capitaliseWords(findSkill.get('skillName'))}`;
+                                let skillText = '';
+                                if (nextBeeSkills.length > 0) {
+                                    for (const skill in nextBeeSkills) {
+                                        const findSkill = await skills.findOne({ where: { skillid: nextBeeSkills[skill] } });
+                                        skillText += `\n${capitaliseWords(findSkill.get('skillName'))}`;
+                                    }
                                 }
-                                beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1149318543553351701> ${capitaliseWords(nextBee.get('beeName'))} (${nextBee.get('beeGrade')})`, value: `Tier: ${beesOnPage[count].dataValues.beeTier}/10 Level: ${beesOnPage[count].dataValues.beeLevel}/150 \nPower: ${beesOnPage[count].dataValues.beePower} Health: ${beesOnPage[count].dataValues.beeHealth} ${skillText}`, inline: true });
+                                beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1149318543553351701> ${capitaliseWords(nextBee.get('beeName'))} (${nextBee.get('beeGrade')})`, value: `Tier: ${beesOnPage[count].dataValues.beeTier}/10 \nLevel: ${beesOnPage[count].dataValues.beeLevel}/150 \nPower: ${beesOnPage[count].dataValues.beePower} \nHealth: ${beesOnPage[count].dataValues.beeHealth} \nSkills: ${skillText}`, inline: true });
                             }
                             if (beeFields.length === 0) {
                                 beeembed.addFields({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
@@ -1612,7 +1614,54 @@ client.on('messageCreate', async (message) => {
         }
 
         // Fight
-        else if (command === 'fight') {}
+        else if (command === 'fight') {
+            let playerTurn = true;
+            let fightOngoing = true;
+            let enemyTurn = false;
+            const playerActionRow = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                .setCustomId('attack')
+                .setLabel('Attack')
+                .setStyle('Primary'),
+            );
+            await message.channel.send({ content: 'Fight started!', components: [playerActionRow] });
+            const filter = (interaction) => interaction.customId === 'attack' && interaction.user.id === message.author.id;
+            const collector = message.channel.createMessageComponentCollector({ filter, time: 30000 });
+            collector.on('collect', async i => {
+                if (!i.deferred) {
+                    await i.deferUpdate();
+                }
+                await message.channel.send('You attacked!');
+                playerTurn = false;
+                collector.stop();
+                enemyTurn = true;
+            });
+            collector.on('end', (collected, reason) => {
+                if (reason === 'time') {
+                    message.channel.send('Time\'s up! The game is over.');
+                }
+            });
+            while (fightOngoing) {
+                while (playerTurn) {
+                    continue;
+                }
+                while (enemyTurn) {
+                    await message.channel.send('The enemy attacked you!');
+                    playerTurn = true;
+                    enemyTurn = false;
+                    collector.on('collect', async i => {
+                        if (!i.deferred) {
+                            await i.deferUpdate();
+                        }
+                        await message.channel.send('You attacked!');
+                        playerTurn = false;
+                        collector.stop();
+                        enemyTurn = true;
+                    });
+                }
+            }
+        }
 
         // Master Commands - Tester Commands ONLY
         else if (command === 'mc') {
