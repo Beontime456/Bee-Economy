@@ -92,7 +92,39 @@ async function msToTime(duration) {
       hours = Math.floor((duration / (1000 * 60 * 60)) % 24);
 
     return hours + ' hours ' + minutes + ' minutes ' + seconds + ' seconds';
-  }
+}
+async function turn(message, collector, filter, beeTeam) {
+    collector.stop();
+    await message.edit('Enemy attacked!');
+    collector = message.createMessageComponentCollector({ filter, time: 90000 });
+    collector.on('collect', async i => {
+        if (!i.deferred) {
+            await i.deferUpdate();
+        }
+        if (i.customId === 'attack') {
+            turn(message, collector, filter);
+        }
+    });
+    collector.on('end', (collected, reason) => {
+        if (reason === 'time') {
+            message.channel.send('You ran out of time and lost the fight!');
+        }
+    });
+}
+async function calculateStats(type, bee) {
+    const beeSkills = JSON.parse(bee.get('skills'));
+    if (type === 'health') {
+        for (const skill in beeSkills) {
+            if (beeSkills[skill]) {
+            }
+        }
+    }
+    else if (type === 'power') {}
+}
+const createFightBee = (bee) => {
+    health: calculateStats('health', bee);
+    power: calculateStats('power', bee);
+}
 const gradeMultipliers = {
     'F': 0.75,
     'E': 0.85,
@@ -331,7 +363,7 @@ client.on('messageCreate', async (message) => {
                                 .setAuthor({ name: `${message.author.displayName}'s bees - Page ${page + 1}`, iconURL: message.author.displayAvatarURL() })
                                 .setFooter({ text: beeFact() })
                                 .addFields(
-                                    { name: 'Bees', value: `These are all your bees. They are curcial for progression. \nIBI stands for Individual Bee Identifier and is used to distinguish specific bees from each other. \n\nBee slots: ${await playerbees.count({ where: { playerid: message.author.id } })}/${findplayer.get('beeSlots')}` },
+                                    { name: 'Bees', value: `These are all your bees. They are crucial for progression. \nIBI stands for Individual Bee Identifier and is used to distinguish specific bees from each other. \n\nBee slots: ${await playerbees.count({ where: { playerid: message.author.id } })}/${findplayer.get('beeSlots')}` },
                                 );
                             for (let count = 0; count < beesOnPage.length; count++) {
                                 const nextBee = await beelist.findOne({ where: { beeid: beesOnPage[count].dataValues.beeid } });
@@ -470,7 +502,7 @@ client.on('messageCreate', async (message) => {
                             const embedMessage = await message.channel.send({ embeds: [embeds[0]], components: [row] });
                             const collector = message.channel.createMessageComponentCollector({ time: 90000 });
                             collector.on('collect', async i => {
-                                if (message.author.id === findplayer.get('playerid')) {
+                                if (i.author.id === message.author.id) {
                                     if (!i.deferred) {
                                         await i.deferUpdate();
                                     }
@@ -1615,9 +1647,7 @@ client.on('messageCreate', async (message) => {
 
         // Fight
         else if (command === 'fight') {
-            let playerTurn = true;
-            let fightOngoing = true;
-            let enemyTurn = false;
+            const playerBeeTeam = JSON.parse(findplayer.get('beeTeam'));
             const playerActionRow = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
@@ -1625,42 +1655,32 @@ client.on('messageCreate', async (message) => {
                 .setLabel('Attack')
                 .setStyle('Primary'),
             );
-            await message.channel.send({ content: 'Fight started!', components: [playerActionRow] });
-            const filter = (interaction) => interaction.customId === 'attack' && interaction.user.id === message.author.id;
-            const collector = message.channel.createMessageComponentCollector({ filter, time: 30000 });
+            let text = '';
+            for (const bee in playerBeeTeam) {
+                const findBee = await playerbees.findOne({ where: { IBI: playerBeeTeam[bee] } });
+                const findBeeName = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
+                text += `**${capitaliseWords(findBeeName.get('beeName'))}**\nPower: ${findBee.get('beePower')}\nHealth: ${findBee.get('beeHealth')}\n\n`;
+            }
+            const fightEmbed = new EmbedBuilder()
+                .setColor(0xffe521)
+                .setAuthor({ name: 'Fight!' })
+                .addFields({ name: 'Enemy', value: `**Dummy**\nPower: 10\n▃▃▃▃▃▃▃\n\n **Your bees**\n\n${text}` });
+            const fightMessage = await message.channel.send({ embeds: [fightEmbed], components: [playerActionRow] });
+            const filter = (interaction) => interaction.user.id === message.author.id;
+            const collector = fightMessage.createMessageComponentCollector({ filter, time: 90000 });
             collector.on('collect', async i => {
                 if (!i.deferred) {
                     await i.deferUpdate();
                 }
-                await message.channel.send('You attacked!');
-                playerTurn = false;
-                collector.stop();
-                enemyTurn = true;
+                if (i.customId === 'attack') {
+                    turn(fightMessage, collector, filter, playerBeeTeam);
+                }
             });
             collector.on('end', (collected, reason) => {
                 if (reason === 'time') {
                     message.channel.send('Time\'s up! The game is over.');
                 }
             });
-            while (fightOngoing) {
-                while (playerTurn) {
-                    continue;
-                }
-                while (enemyTurn) {
-                    await message.channel.send('The enemy attacked you!');
-                    playerTurn = true;
-                    enemyTurn = false;
-                    collector.on('collect', async i => {
-                        if (!i.deferred) {
-                            await i.deferUpdate();
-                        }
-                        await message.channel.send('You attacked!');
-                        playerTurn = false;
-                        collector.stop();
-                        enemyTurn = true;
-                    });
-                }
-            }
         }
 
         // Master Commands - Tester Commands ONLY

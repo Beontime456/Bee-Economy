@@ -67,7 +67,7 @@ sequelize.sync({ force }).then(async () => {
         skillList.upsert({ skillName: 'healer', skillRarity: 'B', skillType: 'active', skillDetails: { 'healing': 40, 'target': 'team', 'targetType': 'single', 'cooldown': 4 } }),
         skillList.upsert({ skillName: 'gun', skillRarity: 'S', skillType: 'active', skillDetails: { 'damage': 69420, 'target': 'enemy', 'targetType': 'single', 'cooldown': 0 } }),
         skillList.upsert({ skillName: 'resilient', skillRarity: 'C', skillType: 'passive', skillDetails: { 'resistance': 1.1 } }),
-        skillList.upsert({ skillName: 'angry', skillRarity: 'C', skillType: 'passive', skillDetails: { 'damage': 1.1 } }),
+        skillList.upsert({ skillName: 'angry', skillRarity: 'C', skillType: 'passive', skillDetails: { 'damageBoost': 1.1 } }),
         skillList.upsert({ skillName: 'tough', skillRarity: 'C', skillType: 'passive', skillDetails: { 'health': 1.1 } }),
         skillList.upsert({ skillName: 'knight', skillRarity: 'C', skillType: 'active', skillDetails: { 'resistance': 1.3, 'target': 'self', 'cooldown': 10 } }),
         skillList.upsert({ skillName: 'pollinator', skillRarity: 'A', skillType: 'passive', skillDetails: { 'teamStats': 1.05 } }),
