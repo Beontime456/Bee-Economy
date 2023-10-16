@@ -111,20 +111,23 @@ async function turn(message, collector, filter, beeTeam) {
         }
     });
 }
-async function calculateStats(type, bee) {
-    const beeSkills = JSON.parse(bee.get('skills'));
-    if (type === 'health') {
-        for (const skill in beeSkills) {
-            if (beeSkills[skill]) {
-            }
+async function calculatePassives(beeObject) {
+    for (const skillid in beeObject.skills) {
+        const skill = skills.findOne({ where: { skillid: skillid } });
+        const skillEffect = JSON.parse(skill.get('skillDetails'))
+        if (skill.get('skillType') != 'passive') {
+            continue;
         }
     }
-    else if (type === 'power') {}
 }
 const createFightBee = (bee) => {
-    health: calculateStats('health', bee);
-    power: calculateStats('power', bee);
-}
+    return {
+        IBI: bee.get('IBI'),
+        health: bee.get('beeHealth'),
+        power: bee.get('beePower'),
+        skills: JSON.parse(bee.get('skills')),
+    };
+};
 const gradeMultipliers = {
     'F': 0.75,
     'E': 0.85,
@@ -1560,15 +1563,15 @@ client.on('messageCreate', async (message) => {
                     return;
                 }
                 const findBeeInfo = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
-                if (skillType.toLowerCase() != 'passive' && skillType.toLowerCase() != 'active') {
+                if (!skillType || skillType.toLowerCase() != 'passive' && skillType.toLowerCase() != 'active') {
                     await message.channel.send('Please choose a valid skill type to learn (`passive or active`)');
                     return;
                 }
                 if (skillType === 'active') {
-                    await message.channel.send(`Sent your ${capitaliseWords(findBeeInfo.get('beeName'))} to the dojo to learn an ${args[1].toLowerCase()} skill!`);
+                    await message.channel.send(`**${message.author.username}** sent their **${capitaliseWords(findBeeInfo.get('beeName'))}** to the dojo to learn an ${args[1].toLowerCase()} skill!`);
                 }
                 else {
-                    await message.channel.send(`Sent your ${capitaliseWords(findBeeInfo.get('beeName'))} to the dojo to learn a ${args[1].toLowerCase()} skill!`);
+                    await message.channel.send(`**${message.author.username}** sent their **${capitaliseWords(findBeeInfo.get('beeName'))}** to the dojo to learn an ${args[1].toLowerCase()} skill!`);
                 }
                 currentDojoStatus.push(args[0]);
                 currentDojoStatus.push(args[1]);
@@ -1639,7 +1642,7 @@ client.on('messageCreate', async (message) => {
                         .setColor(0xffe521)
                         .setAuthor({ name: 'The Dojo' })
                         .addFields({ name: 'Welcome to the dojo!',
-                        value: `Here, you can give bees new skills or improve existing skills! \nThese skills can provide passive buffs or special abilities that can be activated in battle. \nBees take time to train. \nOnly one bee can be trained at a time. \n\nCurrent training status: \n${text}` })
+                        value: `- Here, you can give bees new skills or improve existing skills! \n- These skills can provide passive buffs or special abilities that can be activated in battle. \n- Bees take time to train. \n- Only one bee can be trained at a time. \n\nCurrent training status: \n${text}` })
                         .setFooter({ text: beeFact() });
                 await message.channel.send({ embeds: [dojoEmbed] });
             }
@@ -1648,6 +1651,7 @@ client.on('messageCreate', async (message) => {
         // Fight
         else if (command === 'fight') {
             const playerBeeTeam = JSON.parse(findplayer.get('beeTeam'));
+            const beeObjs = [];
             const playerActionRow = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
