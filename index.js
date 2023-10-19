@@ -374,8 +374,8 @@ client.on('messageCreate', async (message) => {
                                 let skillText = '';
                                 if (nextBeeSkills.length > 0) {
                                     for (const skill in nextBeeSkills) {
-                                        const findSkill = await skills.findOne({ where: { skillid: nextBeeSkills[skill] } });
-                                        skillText += `\n${capitaliseWords(findSkill.get('skillName'))}`;
+                                        const findSkill = await skills.findOne({ where: { skillid: nextBeeSkills[skill][0] } });
+                                        skillText += `\n${capitaliseWords(findSkill.get('skillName'))} Lv ${nextBeeSkills[0][1]}`;
                                     }
                                 }
                                 beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1149318543553351701> ${capitaliseWords(nextBee.get('beeName'))} (${nextBee.get('beeGrade')})`, value: `Tier: ${beesOnPage[count].dataValues.beeTier}/10 \nLevel: ${beesOnPage[count].dataValues.beeLevel}/150 \nPower: ${beesOnPage[count].dataValues.beePower} \nHealth: ${beesOnPage[count].dataValues.beeHealth} \nSkills: ${skillText}`, inline: true });
@@ -453,15 +453,15 @@ client.on('messageCreate', async (message) => {
                         const targetUser = await client.users.fetch(mentionId);
                         const findPlayerBees = await playerbees.findAll({ where: { playerid: targetUser.id }, order: sequelize.literal('IBI ASC') });
                         const findTarget = await playerinformation.findOne({ where: { playerid: mentionId } });
-                        let pages = Math.ceil(findPlayerBees.length / 6);
+                        let pages = Math.ceil(findPlayerBees.length / 3);
                         if (pages === 0) {
                             pages = 1;
                         }
                         const embeds = [];
                         for (let page = 0; page < pages; page++) {
                             const beeFields = [];
-                            const startIndex = page * 6;
-                            const beesOnPage = findPlayerBees.slice(startIndex, startIndex + 6);
+                            const startIndex = page * 3;
+                            const beesOnPage = findPlayerBees.slice(startIndex, startIndex + 3);
                             const beeembed = new EmbedBuilder()
                                 .setColor(0xffe521)
                                 .setAuthor({ name: `${targetUser.displayName}'s bees - Page ${page + 1}`, iconURL: targetUser.displayAvatarURL() })
@@ -471,7 +471,15 @@ client.on('messageCreate', async (message) => {
                                 );
                             for (let count = 0; count < beesOnPage.length; count++) {
                                 const nextBee = await beelist.findOne({ where: { beeid: beesOnPage[count].dataValues.beeid } });
-                                beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1149318543553351701> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${beesOnPage[count].dataValues.beeTier}/10 \nLevel: ${beesOnPage[count].dataValues.beeLevel}/150 \nPower: ${beesOnPage[count].dataValues.beePower} \nHealth: ${beesOnPage[count].dataValues.beeHealth}`, inline: true });
+                                const nextBeeSkills = JSON.parse(beesOnPage[count].dataValues.skills);
+                                let skillText = '';
+                                if (nextBeeSkills.length > 0) {
+                                    for (const skill in nextBeeSkills) {
+                                        const findSkill = await skills.findOne({ where: { skillid: nextBeeSkills[skill][0] } });
+                                        skillText += `\n${capitaliseWords(findSkill.get('skillName'))} Lv ${nextBeeSkills[0][1]}`;
+                                    }
+                                }
+                                beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1149318543553351701> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${beesOnPage[count].dataValues.beeTier}/10 \nLevel: ${beesOnPage[count].dataValues.beeLevel}/150 \nPower: ${beesOnPage[count].dataValues.beePower} \nHealth: ${beesOnPage[count].dataValues.beeHealth} \nSkills: ${skillText}`, inline: true });
                             }
                             if (beeFields.length === 0) {
                                 beeembed.addFields({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
@@ -1622,7 +1630,7 @@ client.on('messageCreate', async (message) => {
                     .setFooter({ text: beeFact() })
                     .addFields({ name: `Your ${capitaliseWords(findBeeInfo.get('beeName'))} has learned a new skill!`, value: `${capitaliseWords(skillFound.get('skillName'))}` });
                 await message.channel.send({ embeds: [skillembed] });
-                findBeeSkills.push(skillFound.get('skillid'));
+                findBeeSkills.push([skillFound.get('skillid'), 1]);
                 findBeeSkills = JSON.stringify(findBeeSkills);
                 findBee.update({ skills: findBeeSkills });
                 currentDojoStatus = [];
@@ -1645,6 +1653,29 @@ client.on('messageCreate', async (message) => {
                         value: `- Here, you can give bees new skills or improve existing skills! \n- These skills can provide passive buffs or special abilities that can be activated in battle. \n- Bees take time to train. \n- Only one bee can be trained at a time. \n\nCurrent training status: \n${text}` })
                         .setFooter({ text: beeFact() });
                 await message.channel.send({ embeds: [dojoEmbed] });
+            }
+        }
+
+        // Cave
+        else if (command === 'cave') {
+            const subCommand = args.shift();
+            const findPlayerInven = await inventory.findAll({ where: { playerid: message.author.id } });
+            if (subCommand) { return; }
+            else {
+                const caveEmbed = new EmbedBuilder()
+                    .setColor(0xffe521)
+                    .setAuthor({ name: 'The Cave' })
+                    .setFooter({ text: beeFact() })
+                    .addFields({ name: 'The Training Cave',
+                    value: '- The Training Cave is a way for your bees to learn, forget, and power up their skills. \n- Bees learn skills instantly here, at the cost of shards. \n- There are some skills that can only be learned here \n- Green shards are for passive skills \n- Red shards are for active skills \n- Purple shards are for exclusive hybrid skills \n- White shards help bees forget skills \n- Charged shards are for increasing the power of a bee\'s skills' });
+                let invenText = '';
+                for (const item in findPlayerInven) {
+                    const findItem = await items.findOne({ where: { itemid: item.dataValues.itemid } });
+                    if (findItem.get('itemName') != 'red crystal shard' && findItem.get('itemName') != 'green crystal shard' && findItem.get('itemName') != 'purple crystal shard') { continue; }
+                    invenText += `${item.itemName}: ${item.itemAmount}\n`;
+                }
+                caveEmbed.addFields({ name: 'Your Shards', value: `${invenText}` });
+                await message.channel.send({ embeds: [caveEmbed] });
             }
         }
 

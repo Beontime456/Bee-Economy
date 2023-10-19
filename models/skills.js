@@ -10,7 +10,7 @@ module.exports = (sequelize, DataTypes) => {
         skillType: DataTypes.STRING,
         skillCd: DataTypes.INTEGER,
         skillTarget: DataTypes.STRING,
-        skilTargetType: DataTypes.STRNG,
+        skillTargetType: DataTypes.STRING,
         skillDetails: DataTypes.JSON,
     }, {
         timestamps: false,
