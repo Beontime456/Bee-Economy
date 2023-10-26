@@ -7,7 +7,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         itemName: DataTypes.STRING,
         sellPrice: DataTypes.INTEGER,
-        findType: DataTypes.STRING,
+        findType: DataTypes.TEXT,
         findChance: DataTypes.INTEGER,
     }, {
             timestamps: false,

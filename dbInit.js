@@ -30,14 +30,14 @@ sequelize.sync({ force }).then(async () => {
         beeList.upsert({ beeName: 'barbeecue', beeBaseTier: 1, findType: 'backyard', beePrice: 1000, beeGrade: 'B', beeBasePower: 50 }),
     ];
     const items = [
-        itemList.upsert({ itemName: 'flower petal', sellPrice: 100, findType: 'backyard', findChance: 25 }),
-        itemList.upsert({ itemName: 'clash royale king', sellPrice: 1, findType: 'shop', findChance: 0 }),
-        itemList.upsert({ itemName: 'red crystal shard', sellPrice: 5000, findType: 'fight', findChance: 5 }),
-        itemList.upsert({ itemName: 'green crystal shard', sellPrice: 5000, findType: 'fight', findChance: 5 }),
-        itemList.upsert({ itemName: 'purple crystal shard', sellPrice: 10000, findType: 'fight', findChance: 2.5 }),
-        itemList.upsert({ itemName: 'rainbow crystal shard', sellPrice: 200000, findType: 'fight', findChance: 0.01 }),
-        itemList.upsert({ itemName: 'white crystal shard', sellPrice: 2500, findType: 'fight', findChance: 10 }),
-        itemList.upsert({ itemName: 'charged crystal shard', sellPrice: 100, findType: 'fight', findChance: 75 }),
+        itemList.upsert({ itemName: 'flower petal', sellPrice: 100, findType:  '[\'backyard\']', findChance: 25 }),
+        itemList.upsert({ itemName: 'clash royale king', sellPrice: 1, findType: '[\'shop\']', findChance: 0 }),
+        itemList.upsert({ itemName: 'red crystal shard', sellPrice: 5000, findType: '[\'fight\']', findChance: 5 }),
+        itemList.upsert({ itemName: 'green crystal shard', sellPrice: 5000, findType: '[\'fight\']', findChance: 5 }),
+        itemList.upsert({ itemName: 'purple crystal shard', sellPrice: 10000, findType: '[\'fight\']', findChance: 2.5 }),
+        itemList.upsert({ itemName: 'rainbow crystal shard', sellPrice: 200000, findType: '[\'fight\']', findChance: 0.01 }),
+        itemList.upsert({ itemName: 'white crystal shard', sellPrice: 2500, findType: '[\'fight\']', findChance: 10 }),
+        itemList.upsert({ itemName: 'charged crystal shard', sellPrice: 100, findType: '[\'fight\', \'backyard\']', findChance: 75 }),
     ];
     const areas = [
         areaList.upsert({ areaName: 'backyard' }),

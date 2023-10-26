@@ -562,8 +562,9 @@ client.on('messageCreate', async (message) => {
                     text += capitaliseWords(findItems.get('beeName')) + ` (${findItems.get('beeGrade')})` + ':' + '  ' + findItems.get('beePrice') + '\n';
                 }
                 let text2 = '';
-                const shopItems = await items.findAll({ where: { findType: 'shop' } });
+                const shopItems = await items.findAll();
                 for (let count = 0; count < shopItems.length; count++) {
+                    if (!shopItems[count].dataValues.findType.includes('shop')) { continue; }
                     const findItems = await items.findOne({ where: { itemid: shopItems[count].dataValues.itemid } });
                     text2 += capitaliseWords(findItems.get('itemName')) + ':' + '  ' + findItems.get('sellPrice') + '\n';
                 }
@@ -914,25 +915,28 @@ client.on('messageCreate', async (message) => {
             try {
                 if (findplayer.get('energy') - 10 >= 0) {
                     const claimTime = Date.now();
-                    const itemsAvailable = await items.findAll({ where: { findType: findplayer.get('area') } });
+                    const itemsAvailable = await items.findAll();
                     const findAllBees = await playerbees.findAll({ where: { playerid: message.author.id } });
                     let beePowerMod = 0;
                     for (let i = 0; i < findAllBees.length; i++) {
                         beePowerMod += findAllBees[i].dataValues.beePower;
                     }
-                    beePowerMod /= 100;
+                    beePowerMod /= 750;
                     const advTime = ((claimTime - findplayer.get('lastAdvClaim')) / 1000 / 60) * beePowerMod;
                     const moneyGained = Math.floor(Math.random() * 11 * advTime);
                     let itemsGained = 0;
                     let text = '';
                     text += `Money: ${moneyGained}`;
                     for (let count = 0; count < itemsAvailable.length; count++) {
+                        if (!itemsAvailable[count].dataValues.findType.includes(findplayer.get('area'))) { continue; }
                         for (let i = 0; i < advTime; i++) {
                             if (Math.floor(Math.random() * itemsAvailable[count].dataValues.findChance) + 1 < itemsAvailable[count].dataValues.findChance) {
                                 itemsGained++;
                             }
                         }
-                        text += `\n${capitaliseWords(itemsAvailable[count].dataValues.itemName)}: ${itemsGained}`;
+                        if (itemsGained > 0) {
+                            text += `\n${capitaliseWords(itemsAvailable[count].dataValues.itemName)}: ${itemsGained}`;
+                        }
                         const findInvenItem = await inventory.findOne({ where: { itemid: itemsAvailable[count].dataValues.itemid, playerid: message.author.id } });
                         if (findInvenItem) {
                             await findInvenItem.update({ itemAmount: findInvenItem.get('itemAmount') + itemsGained });
@@ -1660,7 +1664,13 @@ client.on('messageCreate', async (message) => {
         else if (command === 'cave') {
             const subCommand = args.shift();
             const findPlayerInven = await inventory.findAll({ where: { playerid: message.author.id } });
-            if (subCommand) { return; }
+            if (subCommand === 'train') {
+                const chosenIBI = args[0];
+                const chosenType = args[1];
+            if (!chosenType || chosenType != 'passive' && chosenType != 'active' && chosenType != 'hybrid' && chosenType != 'godly') {
+                await message.channel.send('Please choose an available type of ')
+            }
+            }
             else {
                 const caveEmbed = new EmbedBuilder()
                     .setColor(0xffe521)
@@ -1670,9 +1680,9 @@ client.on('messageCreate', async (message) => {
                     value: '- The Training Cave is a way for your bees to learn, forget, and power up their skills. \n- Bees learn skills instantly here, at the cost of shards. \n- There are some skills that can only be learned here \n- Green shards are for passive skills \n- Red shards are for active skills \n- Purple shards are for exclusive hybrid skills \n- White shards help bees forget skills \n- Charged shards are for increasing the power of a bee\'s skills' });
                 let invenText = '';
                 for (const item in findPlayerInven) {
-                    const findItem = await items.findOne({ where: { itemid: item.dataValues.itemid } });
-                    if (findItem.get('itemName') != 'red crystal shard' && findItem.get('itemName') != 'green crystal shard' && findItem.get('itemName') != 'purple crystal shard') { continue; }
-                    invenText += `${item.itemName}: ${item.itemAmount}\n`;
+                    const findItem = await items.findOne({ where: { itemid: findPlayerInven[item].dataValues.itemid } });
+                    if (findItem.get('itemName') != 'red crystal shard' && findItem.get('itemName') != 'green crystal shard' && findItem.get('itemName') != 'purple crystal shard' && findItem.get('itemName') != 'white crystal shard' && findItem.get('itemName') != 'charged crystal shard') { continue; }
+                    invenText += `${capitaliseWords(findItem.get('itemName'))}: ${findPlayerInven[item].itemAmount}\n`;
                 }
                 caveEmbed.addFields({ name: 'Your Shards', value: `${invenText}` });
                 await message.channel.send({ embeds: [caveEmbed] });
