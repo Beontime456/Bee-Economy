@@ -3,10 +3,10 @@ const { Sequelize, DataTypes } = require('sequelize');
 const { EmbedBuilder } = require('discord.js');
 
 const sequelize = new Sequelize('database', 'user', 'password', {
-	host: 'localhost',
-	dialect: 'sqlite',
-	logging: false,
-	storage: 'playerinfo.sqlite',
+    host: 'localhost',
+    dialect: 'mysql',
+    logging: false,
+    storage: 'playerinfo.db',
 });
 
 const beelist = sequelize.define('beelist', {

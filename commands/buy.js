@@ -2,10 +2,10 @@ const { SlashCommandBuilder } = require('discord.js');
 const { Sequelize } = require('sequelize');
 
 const sequelize = new Sequelize('database', 'user', 'password', {
-	host: 'localhost',
-	dialect: 'sqlite',
-	logging: false,
-	storage: 'playerinfo.sqlite',
+    host: 'localhost',
+    dialect: 'mysql',
+    logging: false,
+    storage: 'playerinfo.db',
 });
 
 const beelist = require('C:/Bee Economy/models/beelist.js')(sequelize, Sequelize.DataTypes);

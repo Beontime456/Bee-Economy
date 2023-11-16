@@ -1,10 +1,10 @@
 // Require the necessary classes for the bot to function
-const fs = require('node:fs');
-const path = require('node:path');
-const { Client, Collection, Events, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
+// const fs = require('node:fs');
+// const path = require('node:path');
+const { Client, Collection, Events, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { token } = require('./config.json');
 const { Sequelize } = require('sequelize');
-const Canvas = require('@napi-rs/canvas');
+// const Canvas = require('@napi-rs/canvas');
 
 // Create a new client instance
 const client = new Client({ intents: [
@@ -15,10 +15,10 @@ const client = new Client({ intents: [
 
 client.commands = new Collection();
 
-const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+// const commandsPath = path.join(__dirname, 'commands');
+// const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-for (const file of commandFiles) {
+/* for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
     const command = require(filePath);
     // Set a new item in the Collection with the key as the command name and the value as the exported module
@@ -28,14 +28,13 @@ for (const file of commandFiles) {
     else {
         console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
     }
-}
+} */
 
 // Define the sequelize database for easy connection and access
-const sequelize = new Sequelize('database', 'user', 'password', {
+const sequelize = new Sequelize('playerinfo', 'user', 'password', {
     host: 'localhost',
-    dialect: 'sqlite',
+    dialect: 'mysql',
     logging: false,
-    storage: 'playerinfo.sqlite',
 });
 
 // Sync required tables for creation and access of data
@@ -114,7 +113,7 @@ async function turn(message, collector, filter, beeTeam) {
 async function calculatePassives(beeObject) {
     for (const skillid in beeObject.skills) {
         const skill = skills.findOne({ where: { skillid: skillid } });
-        const skillEffect = JSON.parse(skill.get('skillDetails'))
+        const skillEffect = JSON.parse(skill.get('skillDetails'));
         if (skill.get('skillType') != 'passive') {
             continue;
         }
@@ -147,12 +146,12 @@ const gradeRarities = {
     'A': 99,
     'S': 100,
 };
-const areaMap = {
+/* const areaMap = {
     1: [265, 135],
     2: [205, 125],
     3: [285, 105],
     4: [180, 50],
-};
+}; */
 
 
 // When the client is ready, run this code (only once)
@@ -599,15 +598,12 @@ client.on('messageCreate', async (message) => {
                     }
                     const argsText = args.join(' ').toLowerCase();
                     const findBee = await beelist.findOne({ where: { beeName: argsText, findType: 'shop' } });
-                    const findItem = await items.findOne({ where: { itemName: argsText, findType: 'shop' } });
+                    const findItem = await items.findOne({ where: { itemName: argsText } });
                     if (findBee != null) {
                         if (lastArg === 'all') {
                             lastArg = Math.floor(findplayer.get('money') / findBee.get('beePrice'));
                         }
-                        if (lastArg <= 0) {
-                            await message.channel.send('The number has to be higher than 1 lmao');
-                            return;
-                        }
+                        if (lastArg <= 0) { return message.channel.send('The number has to be higher than 1 lmao'); }
                         if (findplayer.get('money') >= findBee.get('beePrice') * lastArg) {
                             if (findplayer.get('beeSlots') >= await playerbees.count({ where: { playerid: message.author.id } }) + lastArg) {
                                 const findplayerbees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
@@ -650,13 +646,11 @@ client.on('messageCreate', async (message) => {
                         }
                     }
                     else if (findItem != null) {
+                        if (!findItem.get('findType').includes('shop')) { return message.channel.send('This isn\'t a buyable item!'); }
                         if (lastArg === 'all') {
                             lastArg = Math.floor(findplayer.get('money') / findItem.get('sellPrice'));
                         }
-                        if (lastArg <= 0) {
-                            await message.channel.send('The number has to be higher than 1 lmao');
-                            return;
-                        }
+                        if (lastArg <= 0) { return message.channel.send('The number has to be higher than 1 lmao'); }
                         if (findplayer.get('money') >= findItem.get('sellPrice') * lastArg) {
                             const findInvenItem = await inventory.findOne({ where: { itemid: findItem.get('itemid'), playerid: message.author.id } });
                             if (findInvenItem === null) {
@@ -1090,7 +1084,7 @@ client.on('messageCreate', async (message) => {
         }
 
         // Map
-        else if (command === 'map') {
+        /* else if (command === 'map') {
             try {
                 const findArea = await area.findOne({ where: { areaName: findplayer.get('area') } });
                 const areaPos = areaMap[findArea.get('areaid')];
@@ -1119,7 +1113,7 @@ client.on('messageCreate', async (message) => {
                     console.log(error);
                 }
             }
-        }
+        } */
 
         // Move
         else if (command === 'move') {
@@ -1561,24 +1555,12 @@ client.on('messageCreate', async (message) => {
                 const selectedBee = args[0];
                 const skillType = args[1];
                 const findBee = await playerbees.findOne({ where: { playerid: message.author.id, IBI: selectedBee } });
-                if (currentDojoStatus.length > 0) {
-                    await message.channel.send('You already have a bee training in the dojo!');
-                    return;
-                }
-                if (!findBee) {
-                    await message.channel.send('Please use a valid IBI.');
-                    return;
-                }
+                if (currentDojoStatus.length > 0) { return message.channel.send('You already have a bee training in the dojo!'); }
+                if (!findBee) { return message.channel.send('Please use a valid IBI.'); }
                 const beeSkills = JSON.parse(findBee.get('skills'));
-                if (beeSkills.length === 3) {
-                    await message.channel.send('This bee has the maximum amount of skills!');
-                    return;
-                }
+                if (beeSkills.length === 3) { return message.channel.send('This bee has the maximum amount of skills!'); }
                 const findBeeInfo = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
-                if (!skillType || skillType.toLowerCase() != 'passive' && skillType.toLowerCase() != 'active') {
-                    await message.channel.send('Please choose a valid skill type to learn (`passive or active`)');
-                    return;
-                }
+                if (!skillType || skillType.toLowerCase() != 'passive' && skillType.toLowerCase() != 'active') { return message.channel.send('Please choose a valid skill type to learn (`passive or active`)'); }
                 if (skillType === 'active') {
                     await message.channel.send(`**${message.author.username}** sent their **${capitaliseWords(findBeeInfo.get('beeName'))}** to the dojo to learn an ${args[1].toLowerCase()} skill!`);
                 }
@@ -1592,40 +1574,20 @@ client.on('messageCreate', async (message) => {
                 findplayer.update({ dojoStatus: currentDojoStatus });
             }
             else if (subCommand === 'claim') {
-                if (currentDojoStatus.length === 0) {
-                    await message.channel.send('You do not have a bee currently training!');
-                    return;
-                }
-                if (currentDojoStatus[2] - Date.now() > 0) {
-                    await message.channel.send('Your bee is not finished training yet!');
-                    return;
-                }
+                if (currentDojoStatus.length === 0) { return message.channel.send('You do not have a bee currently training!'); }
+                if (currentDojoStatus[2] - Date.now() > 0) { return message.channel.send('Your bee is not finished training yet!'); }
                 let skillFound = undefined;
                 const findBee = await playerbees.findOne({ where: { playerid: message.author.id, IBI: currentDojoStatus[0] } });
                 let findBeeSkills = JSON.parse(findBee.get('skills'));
                 while (skillFound === undefined) {
                     const gradeNumber = Math.floor(Math.random() * 101);
-                    if (gradeNumber <= gradeRarities['F']) {
-                        skillFound = await findCommand('F', 'skill', currentDojoStatus[1], findBeeSkills);
-                    }
-                    else if (gradeNumber > gradeRarities['F'] && gradeNumber <= gradeRarities['E']) {
-                        skillFound = await findCommand('E', 'skill', currentDojoStatus[1], findBeeSkills);
-                    }
-                    else if (gradeNumber > gradeRarities['E'] && gradeNumber <= gradeRarities['D']) {
-                        skillFound = await findCommand('D', 'skill', currentDojoStatus[1], findBeeSkills);
-                    }
-                    else if (gradeNumber > gradeRarities['D'] && gradeNumber <= gradeRarities['C']) {
-                        skillFound = await findCommand('C', 'skill', currentDojoStatus[1], findBeeSkills);
-                    }
-                    else if (gradeNumber > gradeRarities['C'] && gradeNumber <= gradeRarities['B']) {
-                        skillFound = await findCommand('B', 'skill', currentDojoStatus[1], findBeeSkills);
-                    }
-                    else if (gradeNumber > gradeRarities['B'] && gradeNumber <= gradeRarities['A']) {
-                        skillFound = await findCommand('A', 'skill', currentDojoStatus[1], findBeeSkills);
-                    }
-                    else if (gradeNumber === gradeRarities['S']) {
-                        skillFound = await findCommand('S', 'skill', currentDojoStatus[1], findBeeSkills);
-                    }
+                    if (gradeNumber <= gradeRarities['F']) { skillFound = await findCommand('F', 'skill', currentDojoStatus[1], findBeeSkills); }
+                    else if (gradeNumber > gradeRarities['F'] && gradeNumber <= gradeRarities['E']) { skillFound = await findCommand('E', 'skill', currentDojoStatus[1], findBeeSkills); }
+                    else if (gradeNumber > gradeRarities['E'] && gradeNumber <= gradeRarities['D']) { skillFound = await findCommand('D', 'skill', currentDojoStatus[1], findBeeSkills); }
+                    else if (gradeNumber > gradeRarities['D'] && gradeNumber <= gradeRarities['C']) { skillFound = await findCommand('C', 'skill', currentDojoStatus[1], findBeeSkills); }
+                    else if (gradeNumber > gradeRarities['C'] && gradeNumber <= gradeRarities['B']) { skillFound = await findCommand('B', 'skill', currentDojoStatus[1], findBeeSkills); }
+                    else if (gradeNumber > gradeRarities['B'] && gradeNumber <= gradeRarities['A']) { skillFound = await findCommand('A', 'skill', currentDojoStatus[1], findBeeSkills); }
+                    else if (gradeNumber === gradeRarities['S']) { skillFound = await findCommand('S', 'skill', currentDojoStatus[1], findBeeSkills); }
                 }
                 const findBeeInfo = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
                 const skillembed = new EmbedBuilder()
@@ -1667,9 +1629,32 @@ client.on('messageCreate', async (message) => {
             if (subCommand === 'train') {
                 const chosenIBI = args[0];
                 const chosenType = args[1];
-            if (!chosenType || chosenType != 'passive' && chosenType != 'active' && chosenType != 'hybrid' && chosenType != 'godly') {
-                await message.channel.send('Please choose an available type of ')
-            }
+                if (!chosenType || chosenType != 'passive' && chosenType != 'active' && chosenType != 'hybrid' && chosenType != 'godly') { return message.channel.send('Please choose a valid type of skill (`passive`, `active`, or `hybrid`).'); }
+                const findBee = await playerbees.findOne({ where: { playerid: message.author.id, IBI: chosenIBI } });
+                if (!findBee) { return message.channel.send('Please use a valid IBI.'); }
+                let beeSkills = JSON.parse(findBee.get('skills'));
+                if (beeSkills.length === 3) { return message.channel.send('Your bee has the maximum amount of skills.'); }
+                let skillFound = undefined;
+                while (skillFound === undefined) {
+                    const gradeNumber = Math.floor(Math.random() * 101);
+                    if (gradeNumber <= gradeRarities['F']) { skillFound = await findCommand('F', 'skill', chosenType, beeSkills); }
+                    else if (gradeNumber > gradeRarities['F'] && gradeNumber <= gradeRarities['E']) { skillFound = await findCommand('E', 'skill', chosenType, beeSkills); }
+                    else if (gradeNumber > gradeRarities['E'] && gradeNumber <= gradeRarities['D']) { skillFound = await findCommand('D', 'skill', chosenType, beeSkills); }
+                    else if (gradeNumber > gradeRarities['D'] && gradeNumber <= gradeRarities['C']) { skillFound = await findCommand('C', 'skill', chosenType, beeSkills); }
+                    else if (gradeNumber > gradeRarities['C'] && gradeNumber <= gradeRarities['B']) { skillFound = await findCommand('B', 'skill', chosenType, beeSkills); }
+                    else if (gradeNumber > gradeRarities['B'] && gradeNumber <= gradeRarities['A']) { skillFound = await findCommand('A', 'skill', chosenType, beeSkills); }
+                    else if (gradeNumber === gradeRarities['S']) { skillFound = await findCommand('S', 'skill', chosenType, beeSkills); }
+                }
+                const findBeeInfo = beelist.findOne({ where: { beeid: findBee.get('beeid') } });
+                const skillembed = new EmbedBuilder()
+                    .setColor(0xffe521)
+                    .setAuthor({ name: `${message.author.displayName}'s bee's training`, iconURL: message.author.displayAvatarURL() })
+                    .setFooter({ text: beeFact() })
+                    .addFields({ name: `Your ${capitaliseWords(findBeeInfo.get('beeName'))} has learned a new skill!`, value: `${capitaliseWords(skillFound.get('skillName'))}` });
+                await message.channel.send(`${skillFound.get('skillid')}`);
+                beeSkills.push([skillFound.get('skillid'), 1]);
+                beeSkills = JSON.stringify(beeSkills);
+                findBee.update({ skills: beeSkills });
             }
             else {
                 const caveEmbed = new EmbedBuilder()

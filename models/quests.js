@@ -4,7 +4,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.INTEGER,
             primaryKey: true,
         },
-        questInfo: DataTypes.JSONB,
+        questInfo: DataTypes.JSON,
     }, {
             timestamps: false,
         });

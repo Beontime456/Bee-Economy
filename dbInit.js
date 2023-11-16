@@ -1,10 +1,9 @@
 const Sequelize = require('sequelize');
 
-const sequelize = new Sequelize('database', 'user', 'password', {
+const sequelize = new Sequelize('playerinfo', 'user', 'password', {
     host: 'localhost',
-    dialect: 'sqlite',
+    dialect: 'mysql',
     logging: false,
-    storage: 'playerinfo.sqlite',
 });
 
 const beeList = require('./models/beelist.js')(sequelize, Sequelize.DataTypes);

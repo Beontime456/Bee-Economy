@@ -4,7 +4,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             primaryKey: true,
         },
-        itemReqs: DataTypes.JSONB,
+        itemReqs: DataTypes.JSON,
     }, {
             timestamps: false,
         });

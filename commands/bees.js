@@ -3,10 +3,10 @@ const { Sequelize } = require('sequelize');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const sequelize = new Sequelize('database', 'user', 'password', {
-	host: 'localhost',
-	dialect: 'sqlite',
-	logging: false,
-	storage: 'playerinfo.sqlite',
+    host: 'localhost',
+    dialect: 'mysql',
+    logging: false,
+    storage: 'playerinfo.db',
 });
 
 const playerinformation = require('C:/Bee Economy/models/playerinformation.js')(sequelize, Sequelize.DataTypes);

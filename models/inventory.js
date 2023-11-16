@@ -1,7 +1,7 @@
 module.exports = (sequelize, DataTypes) => {
     return sequelize.define('inventory', {
         playerid: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.BIGINT,
         },
         itemid: {
             type: DataTypes.INTEGER,
