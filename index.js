@@ -1,40 +1,45 @@
 // Require the necessary classes for the bot to function
-// const fs = require('node:fs');
-// const path = require('node:path');
-const { Client, Collection, Events, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const fs = require('node:fs');
+const path = require('node:path');
+const { Client, Collection, Events, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 const { token } = require('./config.json');
 const { Sequelize } = require('sequelize');
-// const Canvas = require('@napi-rs/canvas');
+const Canvas = require('@napi-rs/canvas');
 
 // Create a new client instance
 const client = new Client({ intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    ] });
+    ], allowedMentions: { repliedUser: false } });
 
 client.commands = new Collection();
 
-// const commandsPath = path.join(__dirname, 'commands');
-// const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+const foldersPath = path.join(__dirname, 'commands');
+const commandFolders = fs.readdirSync(foldersPath);
 
-/* for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
-    // Set a new item in the Collection with the key as the command name and the value as the exported module
-    if ('data' in command && 'execute' in command) {
-        client.commands.set(command.data.name, command);
-    }
-    else {
-        console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
-    }
-} */
+for (const folder of commandFolders) {
+	const commandsPath = path.join(foldersPath, folder);
+	const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+	for (const file of commandFiles) {
+		const filePath = path.join(commandsPath, file);
+		const command = require(filePath);
+		// Set a new item in the Collection with the key as the command name and the value as the exported module
+		if ('data' in command && 'execute' in command) {
+			client.commands.set(command.data.name, command);
+		}
+        else {
+			console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+		}
+	}
+}
 
 // Define the sequelize database for easy connection and access
-const sequelize = new Sequelize('playerinfo', 'user', 'password', {
+const sequelize = new Sequelize('database', 'user', 'password', {
     host: 'localhost',
-    dialect: 'mysql',
+    dialect: 'sqlite',
     logging: false,
+    storage: 'playerinfo.sqlite',
 });
 
 // Sync required tables for creation and access of data
@@ -48,6 +53,7 @@ const quests = require('./models/quests.js')(sequelize, Sequelize.DataTypes);
 const giftbox = require('./models/claimbox.js')(sequelize, Sequelize.DataTypes);
 const recipes = require('./models/recipes.js')(sequelize, Sequelize.DataTypes);
 const skills = require('./models/skills.js')(sequelize, Sequelize.DataTypes);
+
 playerinformation.sync();
 playerbees.sync();
 beelist.sync();
@@ -57,11 +63,12 @@ area.sync();
 quests.sync();
 giftbox.sync();
 recipes.sync();
+skills.sync();
 
 // Initialise a prefix for the bot to see message commands
 const prefix = 'bee ';
 
-// Some basic universal functions and variahbles to be used for several commands.
+// Some basic universal functions and variables to be used for several commands.
 function capitaliseWords(sentence) {
     return sentence.replace(/\b\w/g, char => char.toUpperCase());
 }
@@ -92,6 +99,8 @@ async function msToTime(duration) {
 
     return hours + ' hours ' + minutes + ' minutes ' + seconds + ' seconds';
 }
+
+// Unfinished functions
 async function turn(message, collector, filter, beeTeam) {
     collector.stop();
     await message.edit('Enemy attacked!');
@@ -119,14 +128,20 @@ async function calculatePassives(beeObject) {
         }
     }
 }
-const createFightBee = (bee) => {
-    return {
-        IBI: bee.get('IBI'),
-        health: bee.get('beeHealth'),
-        power: bee.get('beePower'),
-        skills: JSON.parse(bee.get('skills')),
-    };
-};
+async function calculateBeePower(bee) {
+    if (bee.dataValues) {
+        const findBee = await beelist.findOne({ where: { beeid: bee.dataValues.beeid } });
+        const beePower = Math.floor(findBee.get('beeBasePower') * (1.04 ** bee.dataValues.beeLevel) * (1.1 ** bee.dataValues.beeTier) * gradeMultipliers[findBee.get('beeGrade')]);
+        return beePower;
+    }
+    else {
+        const findBee = await beelist.findOne({ where: { beeid: bee.get('beeid') } });
+        const beePower = Math.floor(findBee.get('beeBasePower') * (1.04 ** bee.get('beeLevel')) * (1.1 ** bee.get('beeTier')) * gradeMultipliers[findBee.get('beeGrade')]);
+        return beePower;
+    }
+}
+
+// JSON Mappings - Hardcoded values for some of the various identifiers (e.g grade multipliers, grade rarities, map locations)
 const gradeMultipliers = {
     'F': 0.75,
     'E': 0.85,
@@ -146,12 +161,12 @@ const gradeRarities = {
     'A': 99,
     'S': 100,
 };
-/* const areaMap = {
+const areaMap = {
     1: [265, 135],
     2: [205, 125],
     3: [285, 105],
     4: [180, 50],
-}; */
+};
 
 
 // When the client is ready, run this code (only once)
@@ -206,16 +221,18 @@ client.on(Events.InteractionCreate, async interaction => {
             return;
         }
 
+        if (findplayer === null && command != 'start') { return interaction.reply('You haven\'t started yet! Use `/start` to start!'); }
+
         try {
-            await command.execute(interaction);
+            await command.execute(interaction, true, [], client);
         }
         catch (error) {
             console.error(error);
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+                await interaction.followUp({ content: `There was an error while executing this command! ${error.name}: ${error.message}` });
             }
             else {
-                await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+                await interaction.reply({ content: `There was an error while executing this command! ${error.name}: ${error.message}` });
             }
         }
     }
@@ -223,13 +240,18 @@ client.on(Events.InteractionCreate, async interaction => {
 
 // When the bot sees a message, it will analyse it for a prefix or if the sender is a bot.
 // If the keyword after the prefix is a word in a command it will execute that specific command.
-client.on('messageCreate', async (message) => {
+client.on(Events.MessageCreate, async (message) => {
+    try {
 	if (!message.content.toLowerCase().startsWith(prefix) || message.author.bot) return;
 
+    // Split the arguments of a command and take the actual command from the arguments.
     const args = message.content.slice(prefix.length).split(/\s+/);
     const command = args.shift().toLowerCase();
 
+    // Date.now is to last check when the player initiated a command
     const now = Date.now();
+
+    // Determines whether or not the player has actually started or not... if they have, update energy with the Date.now previously mentioned.
     const findplayer = await playerinformation.findOne({ where: { playerid: message.author.id } });
     if (findplayer != null) {
         const lastCommandTime = findplayer.get('lastEnergyRegen');
@@ -249,7 +271,9 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    // Start
+    // Start - Keep in mind that the only reason this is here is because I'm a fucking idiot who can't bother coming up with a different solution
+    // Think about it - if you allow somebody to use commands from the command files without starting, it creates many issues.
+    // But if you DON'T let players access the command files until after starting their only method is through slash... it's easier this way.
     if (command === 'start') {
         try {
             await playerinformation.create({
@@ -265,32 +289,33 @@ client.on('messageCreate', async (message) => {
                 beeTeam: '[]',
                 dojoStatus: '[]',
             });
-            await message.channel.send('Congrats, you have now started!');
+            await message.reply('Congrats, you have now started!');
             return;
             }
             catch (error) {
                 if (error.name === 'SequelizeUniqueConstraintError') {
-                    await message.channel.send('Oops, it appears you already have started!');
+                    await message.reply('Oops, it appears you already have started!');
                     return;
                 }
             }
     }
 
     if (findplayer) {
-        // Help
-        if (command === 'help') {
-            const helpembed = new EmbedBuilder()
-                .setColor(0xffe521)
-                .setFooter({ text: beeFact() })
-                .setAuthor({ name: 'Help', iconURL: message.author.displayAvatarURL() })
-                .addFields(
-                { name: 'Help', value: 'Hello! If you are using this command chances are you\'re new here. If not, go down to find the available commands.' },
-                { name: 'Commands', value: '- start - Starts your adventure \n- profile - Displays your stats \n- bees - Shows the bees you own \n- shop - Shows the bee shop \n- buy - Lets you buy a bee or item from the bee shop \n- sell - Sells an item or bee of your choice. To sell bees, use their IBI \n- inventory - Lets you check all the items in your inventory \n- find - Go looking for a bee in your current area. \n- claim - Claim anything found by your bees while they work.' });
-            await message.channel.send({ embeds: [helpembed] });
+
+        // Find the command in the command files.
+        const slashCommand = await client.commands.get(command);
+
+        // If it exists there, attempt to execute it as a text command with the supplied args (and the client in case the client needs to be called)
+        if (slashCommand) {
+            await slashCommand.execute(message, false, args, client);
+            return;
         }
 
+        // Any commands below this point will be abbreviations for text based commands (e.g bee profile abbreviated to bee p) OR the text-exclusive tester commands.
+        // Keep in mind the actual command should have IDENTICAL function to the corresponding command file.
+
         // Profile
-        else if (command === 'profile' || command === 'p' || command === 'pr') {
+        if (command === 'p' || command === 'pr') {
             if (!args[0]) {
                 try {
                     const profileembed = new EmbedBuilder()
@@ -305,10 +330,10 @@ client.on('messageCreate', async (message) => {
                         `\nHive: ${capitaliseWords(findplayer.get('area'))}` +
                         `\nEnergy: ${findplayer.get('energy')}`,
                     });
-                    await message.channel.send({ embeds: [profileembed] });
+                    await message.reply({ embeds: [profileembed] });
                 }
                 catch (error) {
-                    await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                    await message.reply(`There was an error! ${error.name}: ${error.message}`);
                     console.log(error);
                 }
             }
@@ -329,449 +354,25 @@ client.on('messageCreate', async (message) => {
                             `\nHive: ${capitaliseWords(findTarget.get('area'))}` +
                             `\nEnergy: ${findTarget.get('energy')}`,
                         });
-                    await message.channel.send({ embeds: [profileembed] });
+                    await message.reply({ embeds: [profileembed] });
                 }
                 catch (error) {
                     if (error.name === 'TypeError') {
-                        await message.channel.send('This player has not started!');
+                        await message.reply('This player has not started!');
                     }
                     else if (error.name === 'DiscordAPIError[10013]') {
-                        await message.channel.send('Please mention a player!');
+                        await message.reply('Please mention a player!');
                     }
                     else {
-                        await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                        await message.reply(`There was an error! ${error.name}: ${error.message}`);
                         console.log(error);
                     }
                 }
             }
         }
 
-        // Bees
-        else if (command === 'bees') {
-                if (!args[0]) {
-                    try {
-                        const findPlayerBees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
-                        let pages = Math.ceil(findPlayerBees.length / 3);
-                        if (pages === 0) {
-                            pages = 1;
-                        }
-                        const embeds = [];
-                        for (let page = 0; page < pages; page++) {
-                            const beeFields = [];
-                            const startIndex = page * 3;
-                            const beesOnPage = findPlayerBees.slice(startIndex, startIndex + 3);
-                            const beeembed = new EmbedBuilder()
-                                .setColor(0xffe521)
-                                .setAuthor({ name: `${message.author.displayName}'s bees - Page ${page + 1}`, iconURL: message.author.displayAvatarURL() })
-                                .setFooter({ text: beeFact() })
-                                .addFields(
-                                    { name: 'Bees', value: `These are all your bees. They are crucial for progression. \nIBI stands for Individual Bee Identifier and is used to distinguish specific bees from each other. \n\nBee slots: ${await playerbees.count({ where: { playerid: message.author.id } })}/${findplayer.get('beeSlots')}` },
-                                );
-                            for (let count = 0; count < beesOnPage.length; count++) {
-                                const nextBee = await beelist.findOne({ where: { beeid: beesOnPage[count].dataValues.beeid } });
-                                const nextBeeSkills = JSON.parse(beesOnPage[count].dataValues.skills);
-                                let skillText = '';
-                                if (nextBeeSkills.length > 0) {
-                                    for (const skill in nextBeeSkills) {
-                                        const findSkill = await skills.findOne({ where: { skillid: nextBeeSkills[skill][0] } });
-                                        skillText += `\n${capitaliseWords(findSkill.get('skillName'))} Lv ${nextBeeSkills[0][1]}`;
-                                    }
-                                }
-                                beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1149318543553351701> ${capitaliseWords(nextBee.get('beeName'))} (${nextBee.get('beeGrade')})`, value: `Tier: ${beesOnPage[count].dataValues.beeTier}/10 \nLevel: ${beesOnPage[count].dataValues.beeLevel}/150 \nPower: ${beesOnPage[count].dataValues.beePower} \nHealth: ${beesOnPage[count].dataValues.beeHealth} \nSkills: ${skillText}`, inline: true });
-                            }
-                            if (beeFields.length === 0) {
-                                beeembed.addFields({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
-                            }
-                            for (let count = 0; count < beeFields.length; count++) {
-                                beeembed.addFields(beeFields[count]);
-                            }
-                            embeds.push(beeembed);
-                        }
-                        if (embeds.length > 1) {
-                            const row = new ActionRowBuilder()
-                            .addComponents([
-                                new ButtonBuilder()
-                                    .setCustomId('firstPage')
-                                    .setStyle(ButtonStyle.Secondary)
-                                    .setEmoji('⏪'),
-                                new ButtonBuilder()
-                                    .setCustomId('prevPage')
-                                    .setStyle(ButtonStyle.Secondary)
-                                    .setEmoji('◀️'),
-                                new ButtonBuilder()
-                                    .setCustomId('nextPage')
-                                    .setStyle(ButtonStyle.Secondary)
-                                    .setEmoji('▶️'),
-                                new ButtonBuilder()
-                                    .setCustomId('lastPage')
-                                    .setStyle(ButtonStyle.Secondary)
-                                    .setEmoji('⏩'),
-                            ]);
-                            let currentPage = 0;
-                            const embedMessage = await message.channel.send({ embeds: [embeds[0]], components: [row] });
-                            const collector = message.channel.createMessageComponentCollector({ time: 90000 });
-                            collector.on('collect', async i => {
-                                if (message.author.id === findplayer.get('playerid')) {
-                                    if (!i.deferred) {
-                                        await i.deferUpdate();
-                                    }
-                                    if (i.customId === 'firstPage') {
-                                        currentPage = 0;
-                                    }
-                                    else if (i.customId === 'prevPage') {
-                                        currentPage = (currentPage - 1 + embeds.length) % embeds.length;
-                                    }
-                                    else if (i.customId === 'nextPage') {
-                                        currentPage = (currentPage + 1) % embeds.length;
-                                    }
-                                    else if (i.customId === 'lastPage') {
-                                        currentPage = embeds.length - 1;
-                                    }
-                                    await embedMessage.edit({ embeds: [embeds[currentPage]], components: [row] });
-                                }
-                            });
-                        }
-                        else {
-                            await message.channel.send({ embeds: [embeds[0]] });
-                        }
-                    }
-                    catch (error) {
-                        if (error.name === 'TypeError') {
-                            await message.channel.send('You haven\'t started yet! Use `bee start` to start!');
-                            console.log(error);
-                        }
-                        else {
-                            await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
-                            console.log(error);
-                        }
-                    }
-                }
-                else {
-                    try {
-                        const mentionId = args[0].replace(/[\\<>@#&!]/g, '');
-                        const targetUser = await client.users.fetch(mentionId);
-                        const findPlayerBees = await playerbees.findAll({ where: { playerid: targetUser.id }, order: sequelize.literal('IBI ASC') });
-                        const findTarget = await playerinformation.findOne({ where: { playerid: mentionId } });
-                        let pages = Math.ceil(findPlayerBees.length / 3);
-                        if (pages === 0) {
-                            pages = 1;
-                        }
-                        const embeds = [];
-                        for (let page = 0; page < pages; page++) {
-                            const beeFields = [];
-                            const startIndex = page * 3;
-                            const beesOnPage = findPlayerBees.slice(startIndex, startIndex + 3);
-                            const beeembed = new EmbedBuilder()
-                                .setColor(0xffe521)
-                                .setAuthor({ name: `${targetUser.displayName}'s bees - Page ${page + 1}`, iconURL: targetUser.displayAvatarURL() })
-                                .setFooter({ text: beeFact() })
-                                .addFields(
-                                    { name: 'Bees', value: `These are all your bees. They will do various things for you, and are very useful to you. \nIBI stands for Individual Bee Identifier and should be used when selling or doing other actions on specific bees. \n\nBee slots: ${await playerbees.count({ where: { playerid: targetUser.id } })}/${findTarget.get('beeSlots')}` },
-                                );
-                            for (let count = 0; count < beesOnPage.length; count++) {
-                                const nextBee = await beelist.findOne({ where: { beeid: beesOnPage[count].dataValues.beeid } });
-                                const nextBeeSkills = JSON.parse(beesOnPage[count].dataValues.skills);
-                                let skillText = '';
-                                if (nextBeeSkills.length > 0) {
-                                    for (const skill in nextBeeSkills) {
-                                        const findSkill = await skills.findOne({ where: { skillid: nextBeeSkills[skill][0] } });
-                                        skillText += `\n${capitaliseWords(findSkill.get('skillName'))} Lv ${nextBeeSkills[0][1]}`;
-                                    }
-                                }
-                                beeFields.push({ name: `\`IBI: ${beesOnPage[count].dataValues.IBI}\` <:Basic_Bee:1149318543553351701> ${capitaliseWords(nextBee.get('beeName'))}`, value: `Grade: ${nextBee.get('beeGrade')} \nTier: ${beesOnPage[count].dataValues.beeTier}/10 \nLevel: ${beesOnPage[count].dataValues.beeLevel}/150 \nPower: ${beesOnPage[count].dataValues.beePower} \nHealth: ${beesOnPage[count].dataValues.beeHealth} \nSkills: ${skillText}`, inline: true });
-                            }
-                            if (beeFields.length === 0) {
-                                beeembed.addFields({ name: '\u200b', value: 'You have no bees :( \n Buy some at the shop (bee shop)' });
-                            }
-                            for (let count = 0; count < beeFields.length; count++) {
-                                beeembed.addFields(beeFields[count]);
-                            }
-                            embeds.push(beeembed);
-                        }
-                        if (embeds.length > 1) {
-                            const row = new ActionRowBuilder()
-                            .addComponents([
-                                new ButtonBuilder()
-                                    .setCustomId('firstPage')
-                                    .setStyle(ButtonStyle.Secondary)
-                                    .setEmoji('⏪'),
-                                new ButtonBuilder()
-                                    .setCustomId('prevPage')
-                                    .setStyle(ButtonStyle.Secondary)
-                                    .setEmoji('◀️'),
-                                new ButtonBuilder()
-                                    .setCustomId('nextPage')
-                                    .setStyle(ButtonStyle.Secondary)
-                                    .setEmoji('▶️'),
-                                new ButtonBuilder()
-                                    .setCustomId('lastPage')
-                                    .setStyle(ButtonStyle.Secondary)
-                                    .setEmoji('⏩'),
-                            ]);
-                            let currentPage = 0;
-                            const embedMessage = await message.channel.send({ embeds: [embeds[0]], components: [row] });
-                            const collector = message.channel.createMessageComponentCollector({ time: 90000 });
-                            collector.on('collect', async i => {
-                                if (i.author.id === message.author.id) {
-                                    if (!i.deferred) {
-                                        await i.deferUpdate();
-                                    }
-                                    if (i.customId === 'firstPage') {
-                                        currentPage = 0;
-                                    }
-                                    else if (i.customId === 'prevPage') {
-                                        currentPage = (currentPage - 1 + embeds.length) % embeds.length;
-                                    }
-                                    else if (i.customId === 'nextPage') {
-                                        currentPage = (currentPage + 1) % embeds.length;
-                                    }
-                                    else if (i.customId === 'lastPage') {
-                                        currentPage = embeds.length - 1;
-                                    }
-                                    await embedMessage.edit({ embeds: [embeds[currentPage]], components: [row] });
-                                }
-                            });
-                        }
-                        else {
-                            await message.channel.send({ embeds: [embeds[0]] });
-                        }
-                    }
-                    catch (error) {
-                        if (error.name === 'TypeError') {
-                            await message.channel.send('This player has not started!');
-                        }
-                        else if (error.name === 'DiscordAPIError[10013]') {
-                            await message.channel.send('Please mention a player!');
-                        }
-                        else {
-                            await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
-                            console.log(error);
-                        }
-                    }
-                }
-        }
-
-        // Shop
-        else if (command === 'shop') {
-            try {
-                let text = '';
-                const shopBees = await beelist.findAll({ where: { findType: 'shop' } });
-                for (let count = 0; count < shopBees.length; count++) {
-                    const findItems = await beelist.findOne({ where: { beeid: shopBees[count].dataValues.beeid } });
-                    text += capitaliseWords(findItems.get('beeName')) + ` (${findItems.get('beeGrade')})` + ':' + '  ' + findItems.get('beePrice') + '\n';
-                }
-                let text2 = '';
-                const shopItems = await items.findAll();
-                for (let count = 0; count < shopItems.length; count++) {
-                    if (!shopItems[count].dataValues.findType.includes('shop')) { continue; }
-                    const findItems = await items.findOne({ where: { itemid: shopItems[count].dataValues.itemid } });
-                    text2 += capitaliseWords(findItems.get('itemName')) + ':' + '  ' + findItems.get('sellPrice') + '\n';
-                }
-                const shopembed = new EmbedBuilder()
-                .setColor(0xffe521)
-                .setTitle('The Bee Shop')
-                .setFooter({ text: beeFact() })
-                .addFields({ name: '\u200b', value: 'Hello, welcome to the bee shop! Here you can buy bees that can work for you. These bees are really useful, so I think you should buy some. You can also buy items which may aid you.' + '\u200b' })
-                .addFields({ name: 'Bees', value: `\n\n${text}` }, { name: 'Items', value: `\n\n${text2}` });
-                await message.channel.send({ embeds: [shopembed] });
-            }
-            catch (error) {
-                await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
-                console.log(error);
-            }
-        }
-
-        // Buy
-        else if (command === 'buy') {
-            try {
-                    let lastArg = args[args.length - 1];
-                    if (typeof parseInt(lastArg) === 'number' && Number.isNaN(parseInt(lastArg)) != true) {
-                        args.pop();
-                        lastArg = parseInt(lastArg);
-                    }
-                    else if (lastArg.toLowerCase() === 'all') {
-                        args.pop();
-                        lastArg = 'all';
-                    }
-                    else {
-                        lastArg = 1;
-                    }
-                    const argsText = args.join(' ').toLowerCase();
-                    const findBee = await beelist.findOne({ where: { beeName: argsText, findType: 'shop' } });
-                    const findItem = await items.findOne({ where: { itemName: argsText } });
-                    if (findBee != null) {
-                        if (lastArg === 'all') {
-                            lastArg = Math.floor(findplayer.get('money') / findBee.get('beePrice'));
-                        }
-                        if (lastArg <= 0) { return message.channel.send('The number has to be higher than 1 lmao'); }
-                        if (findplayer.get('money') >= findBee.get('beePrice') * lastArg) {
-                            if (findplayer.get('beeSlots') >= await playerbees.count({ where: { playerid: message.author.id } }) + lastArg) {
-                                const findplayerbees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
-                                for (let count = 0; count < lastArg; count++) {
-                                    let nextIBI = 0;
-                                    if (findplayerbees.length > 0) {
-                                        let currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                                        while (nextIBI === currentIBI) {
-                                            nextIBI++;
-                                            if (findplayerbees[nextIBI] != undefined) {
-                                                currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                                            }
-                                        }
-                                    }
-                                    await playerbees.create({
-                                        playerid: message.author.id,
-                                        IBI: nextIBI,
-                                        beeid: findBee.get('beeid'),
-                                        beeLevel: 1,
-                                        beeTier: findBee.get('beeBaseTier'),
-                                        tierUpMod: 1,
-                                        beePower: Math.floor(findBee.get('beeBasePower') * gradeMultipliers[findBee.get('beeBasePower')]),
-                                        beeHealth: 100,
-                                    });
-                                }
-                                await findplayer.update({ money: findplayer.get('money') - findBee.get('beePrice') * lastArg });
-                                if (lastArg > 1) {
-                                    await message.channel.send(`Bought ${lastArg} ${capitaliseWords(findBee.get('beeName'))}s for ${findBee.get('beePrice') * lastArg} money!`);
-                                }
-                                else {
-                                    await message.channel.send(`Bought ${lastArg} ${capitaliseWords(findBee.get('beeName'))} for ${findBee.get('beePrice') * lastArg} money!`);
-                                }
-                            }
-                            else {
-                                await message.channel.send('You don\'t have enough bee slots for this many bees! Get some more bozo');
-                            }
-                        }
-                        else {
-                            await message.channel.send('You are too poor lmao');
-                        }
-                    }
-                    else if (findItem != null) {
-                        if (!findItem.get('findType').includes('shop')) { return message.channel.send('This isn\'t a buyable item!'); }
-                        if (lastArg === 'all') {
-                            lastArg = Math.floor(findplayer.get('money') / findItem.get('sellPrice'));
-                        }
-                        if (lastArg <= 0) { return message.channel.send('The number has to be higher than 1 lmao'); }
-                        if (findplayer.get('money') >= findItem.get('sellPrice') * lastArg) {
-                            const findInvenItem = await inventory.findOne({ where: { itemid: findItem.get('itemid'), playerid: message.author.id } });
-                            if (findInvenItem === null) {
-                                await inventory.create({
-                                    playerid: message.author.id,
-                                    itemid: findItem.get('itemid'),
-                                    itemAmount: 1 * lastArg,
-                                });
-                            }
-                            else {
-                                await findInvenItem.update({ itemAmount: findInvenItem.get('itemAmount') + 1 * lastArg });
-                            }
-                            await findplayer.update({ money: findplayer.get('money') - findItem.get('sellPrice') * lastArg });
-                            if (lastArg > 1) {
-                                await message.channel.send(`Bought ${lastArg} ${capitaliseWords(findItem.get('itemName'))}s for ${findItem.get('sellPrice') * lastArg} money!`);
-                            }
-                            else {
-                                await message.channel.send(`Bought the ${capitaliseWords(findItem.get('itemName'))} for ${findItem.get('sellPrice') * lastArg} money!`);
-                            }
-                        }
-                        else {
-                            await message.channel.send('You are too poor lmao');
-                        }
-                    }
-                    else {
-                        await message.channel.send('This isn\'t a buyable kind of bee or item!');
-                    }
-            }
-            catch (error) {
-                await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
-                console.log(error);
-            }
-        }
-
-        // Sell
-        else if (command === 'sell') {
-            try {
-                let lastArg = args[args.length - 1];
-                if (typeof parseInt(lastArg) === 'number' && Number.isNaN(parseInt(lastArg)) != true) {
-                    args.pop();
-                    lastArg = parseInt(lastArg);
-                }
-                else if (lastArg.toLowerCase() === 'all') {
-                    args.pop();
-                    lastArg = 'all';
-                }
-                else {
-                    lastArg = 1;
-                }
-                const argsText = args.join(' ').toLowerCase();
-                if (argsText) {
-                    const findItem = await items.findOne({ where: { itemName: argsText } });
-                    if (findItem != null) {
-                        const findInvenItem = await inventory.findOne({ where: { playerid: message.author.id, itemid: findItem.get('itemid') } });
-                        if (findInvenItem) {
-                            if (lastArg === 'all') {
-                                lastArg = findInvenItem.get('itemAmount');
-                            }
-                            if (lastArg <= 0) {
-                                await message.channel.send('The number has to be higher than 1 lmao');
-                                return;
-                            }
-                            if (lastArg > findInvenItem.get('itemAmount')) {
-                                await message.channel.send('You do not have enough of this item!');
-                            }
-                            else if (lastArg === findInvenItem.get('itemAmount') && lastArg != 1) {
-                                await message.channel.send(`Sold ${lastArg} ${capitaliseWords(findItem.get('itemName'))}s for ${findItem.get('sellPrice') * lastArg} money!`);
-                                await findInvenItem.destroy();
-                                await findplayer.update({ money: findplayer.get('money') + findItem.get('sellPrice') * lastArg });
-                            }
-                            else if (lastArg > 1) {
-                                await message.channel.send(`Sold ${lastArg} ${capitaliseWords(findItem.get('itemName'))}s for ${findItem.get('sellPrice') * lastArg} money!`);
-                                await findInvenItem.update({ itemAmount: findInvenItem.get('itemAmount') - lastArg });
-                                await findplayer.update({ money: findplayer.get('money') + findItem.get('sellPrice') * lastArg });
-                            }
-                            else if (lastArg === 1 && lastArg === findInvenItem.get('itemAmount')) {
-                                await message.channel.send(`Sold ${lastArg} ${capitaliseWords(findItem.get('itemName'))} for ${findItem.get('sellPrice') * lastArg} money!`);
-                                await findInvenItem.destroy();
-                                await findplayer.update({ money: findplayer.get('money') + findItem.get('sellPrice') * lastArg });
-                            }
-                            else {
-                                await message.channel.send(`Sold ${lastArg} ${capitaliseWords(findItem.get('itemName'))} for ${findItem.get('sellPrice') * lastArg} money!`);
-                                await findInvenItem.update({ itemAmount: findInvenItem.get('itemAmount') - lastArg });
-                                await findplayer.update({ money: findplayer.get('money') + findItem.get('sellPrice') * lastArg });
-                            }
-                        }
-                        else {
-                            await message.channel.send('You have to have the item lol');
-                        }
-                    }
-                    else {
-                        await message.channel.send('This isn\'t an existing item!');
-                    }
-                }
-                else {
-                    let beeTeam = JSON.parse(findplayer.get('beeTeam'));
-                    const findBee = await playerbees.findOne({ where: { playerid: message.author.id, IBI: lastArg } });
-                    if (findBee != null) {
-                        if (beeTeam.includes(findBee.get('IBI'))) {
-                            const teamIndex = beeTeam.indexOf(findBee.get('IBI'));
-                            beeTeam.splice(teamIndex, 1);
-                        }
-                        beeTeam = JSON.stringify(beeTeam);
-                        const findBeeName = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
-                        await findBee.destroy();
-                        await findplayer.update({ money: findplayer.get('money') + findBeeName.get('beePrice') / 2, beeTeam: beeTeam });
-                        await message.channel.send(`Sold the ${capitaliseWords(findBeeName.get('beeName'))}!`);
-                    }
-                    else {
-                        await message.channel.send('This isn\'t a bee you own!');
-                    }
-                }
-            }
-            catch (error) {
-                await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
-                console.log(error);
-            }
-        }
-
         // Inventory
-        else if (command === 'inventory' || command === 'i') {
+        else if (command === 'i' || command === 'inv') {
             if (!args[0]) {
                 try {
                     let text = '';
@@ -781,7 +382,7 @@ client.on('messageCreate', async (message) => {
                         text += capitaliseWords(findItems.get('itemName')) + ':' + '  ' + findPlayerInven[count].get('itemAmount') + '\n';
                     }
                     if (text === '') {
-                        text += 'No items here :( \nFind or buy some.';
+                        text += 'No items here :( \n`Find` or `Buy` some.';
                     }
                     const invenembed = new EmbedBuilder()
                         .setColor(0xffe521)
@@ -789,10 +390,10 @@ client.on('messageCreate', async (message) => {
                         .setFooter({ text: beeFact() })
                         .addFields({ name: 'Inventory', value: 'This is your inventory. All of your items will appear here.' })
                         .addFields({ name: 'Items', value: `\n${text}` });
-                    await message.channel.send({ embeds: [invenembed] });
+                    await message.reply({ embeds: [invenembed] });
                 }
                 catch (error) {
-                    await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                    await message.reply(`There was an error! ${error.name}: ${error.message}`);
                     console.log(error);
                 }
             }
@@ -815,276 +416,21 @@ client.on('messageCreate', async (message) => {
                         .setFooter({ text: beeFact() })
                         .addFields({ name: 'Inventory', value: 'This is your inventory. All of your items will appear here.' })
                         .addFields({ name: 'Items', value: `\n${text}` });
-                    await message.channel.send({ embeds: [invenembed] });
+                    await message.reply({ embeds: [invenembed] });
                 }
                 catch (error) {
-                    await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
+                    await message.reply(`There was an error! ${error.name}: ${error.message}`);
                     console.log(error);
                 }
             }
         }
 
-        // Find
-        else if (command === 'find') {
-            try {
-                if (findplayer.get('energy') - 20 >= 0) {
-                    const findPlayerBeeSlots = await playerinformation.findOne({ where: { playerid: message.author.id } });
-                    if (findPlayerBeeSlots.get('beeSlots') >= await playerbees.count({ where: { playerid: message.author.id } }) + 1) {
-                        let beeFound = undefined;
-                        while (beeFound === undefined) {
-                            const gradeNumber = Math.floor(Math.random() * 101);
-                            if (gradeNumber <= gradeRarities['F']) {
-                                beeFound = await findCommand('F', 'bee', findplayer.get('area'));
-                            }
-                            else if (gradeNumber > gradeRarities['F'] && gradeNumber <= gradeRarities['E']) {
-                                beeFound = await findCommand('E', 'bee', findplayer.get('area'));
-                            }
-                            else if (gradeNumber > gradeRarities['E'] && gradeNumber <= gradeRarities['D']) {
-                                beeFound = await findCommand('D', 'bee', findplayer.get('area'));
-                            }
-                            else if (gradeNumber > gradeRarities['D'] && gradeNumber <= gradeRarities['C']) {
-                                beeFound = await findCommand('C', 'bee', findplayer.get('area'));
-                            }
-                            else if (gradeNumber > gradeRarities['C'] && gradeNumber <= gradeRarities['B']) {
-                                beeFound = await findCommand('B', 'bee', findplayer.get('area'));
-                            }
-                            else if (gradeNumber > gradeRarities['B'] && gradeNumber <= gradeRarities['A']) {
-                                beeFound = await findCommand('A', 'bee', findplayer.get('area'));
-                            }
-                            else if (gradeNumber === gradeRarities['S']) {
-                                beeFound = await findCommand('S', 'bee', findplayer.get('area'));
-                            }
-                        }
-                        const findembed = new EmbedBuilder()
-                            .setColor(0xffe521)
-                            .setAuthor({ name: `${message.author.displayName}'s exploration results (-20 energy)`, iconURL: message.author.displayAvatarURL() })
-                            .setFooter({ text: beeFact() })
-                            .addFields({ name: `${capitaliseWords((await beeFound).dataValues.beeName)}`, value: `Grade: ${(await beeFound).dataValues.beeGrade}` });
-                        await message.channel.send({ embeds: [findembed] });
-                        const findplayerbees = await playerbees.findAll({ where: { playerid: message.author.id }, order: sequelize.literal('IBI ASC') });
-                        let nextIBI = 0;
-                        if (findplayerbees.length > 0) {
-                            let currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                            while (nextIBI === currentIBI) {
-                                nextIBI++;
-                                if (findplayerbees[nextIBI] != undefined) {
-                                    currentIBI = await findplayerbees[nextIBI].dataValues.IBI;
-                                }
-                            }
-                        }
-                        await playerbees.create({
-                            playerid: message.author.id,
-                            IBI: nextIBI,
-                            beeid: (await beeFound).dataValues.beeid,
-                            beeLevel: 1,
-                            beeTier: (await beeFound).dataValues.beeBaseTier,
-                            tierUpMod: 1,
-                            beePower: Math.floor((await beeFound).dataValues.beeBasePower * gradeMultipliers[(await beeFound).dataValues.beeGrade]),
-                            beeHealth: 100,
-                            skills: '[]',
-                        });
-                        await findplayer.update({ energy: findplayer.get('energy') - 20 });
-                    }
-                    else {
-                        await message.channel.send('You don\'t have enough bee slots for another bee! Get some more lmao');
-                    }
-                }
-                else {
-                    await message.channel.send('You don\'t have enough energy to look for another bee! Try resting for a while then try again.');
-                }
-            }
-            catch (error) {
-                if (error.name === 'TypeError') {
-                    await message.channel.send('You haven\'t started yet! Use `bee start` to start.');
-                }
-                else {
-                    await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
-                    console.log(error);
-                }
-            }
-        }
-
-        // Claim
-        else if (command === 'claim') {
-            try {
-                if (findplayer.get('energy') - 10 >= 0) {
-                    const claimTime = Date.now();
-                    const itemsAvailable = await items.findAll();
-                    const findAllBees = await playerbees.findAll({ where: { playerid: message.author.id } });
-                    let beePowerMod = 0;
-                    for (let i = 0; i < findAllBees.length; i++) {
-                        beePowerMod += findAllBees[i].dataValues.beePower;
-                    }
-                    beePowerMod /= 750;
-                    const advTime = ((claimTime - findplayer.get('lastAdvClaim')) / 1000 / 60) * beePowerMod;
-                    const moneyGained = Math.floor(Math.random() * 11 * advTime);
-                    let itemsGained = 0;
-                    let text = '';
-                    text += `Money: ${moneyGained}`;
-                    for (let count = 0; count < itemsAvailable.length; count++) {
-                        if (!itemsAvailable[count].dataValues.findType.includes(findplayer.get('area'))) { continue; }
-                        for (let i = 0; i < advTime; i++) {
-                            if (Math.floor(Math.random() * itemsAvailable[count].dataValues.findChance) + 1 < itemsAvailable[count].dataValues.findChance) {
-                                itemsGained++;
-                            }
-                        }
-                        if (itemsGained > 0) {
-                            text += `\n${capitaliseWords(itemsAvailable[count].dataValues.itemName)}: ${itemsGained}`;
-                        }
-                        const findInvenItem = await inventory.findOne({ where: { itemid: itemsAvailable[count].dataValues.itemid, playerid: message.author.id } });
-                        if (findInvenItem) {
-                            await findInvenItem.update({ itemAmount: findInvenItem.get('itemAmount') + itemsGained });
-                        }
-                        else {
-                            await inventory.create({
-                                playerid: message.author.id,
-                                itemid: itemsAvailable[count].dataValues.itemid,
-                                itemAmount: itemsGained,
-                            });
-                        }
-                        itemsGained = 0;
-                    }
-                    const advembed = new EmbedBuilder()
-                        .setColor(0xffe521)
-                        .setAuthor({ name: `${message.author.displayName}'s adventuring results`, iconURL: message.author.displayAvatarURL() })
-                        .setFooter({ text: beeFact() })
-                        .addFields({ name: 'The bees are back!', value: `You lost 10 energy :zap: \nThe bees brought with them: \n\n${text}` });
-                    await message.channel.send({ embeds: [advembed] });
-                    findplayer.update({ money: findplayer.get('money') + moneyGained, lastAdvClaim: claimTime, energy: findplayer.get('energy') - 10 });
-                }
-                else {
-                    await message.channel.send('You do not have enough energy to claim rewards! Try resting for a bit then come back.');
-                }
-            }
-            catch (error) {
-                if (error.name === 'TypeError') {
-                    await message.channel.send('You haven\'t started yet! Use `bee start` to start.');
-                }
-                else {
-                    await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
-                    console.log(error);
-                }
-            }
-        }
-
-        // Train
-        else if (command === 'train') {
-            try {
-                const chosenBee = args.shift();
-                let lastArg = parseInt(args[args.length - 1]);
-                if (typeof lastArg === 'number' && Number.isNaN(lastArg) != true) {
-                    args.pop();
-                }
-                else {
-                    lastArg = 1;
-                }
-                const findBee = await playerbees.findOne({ where: { IBI: chosenBee, playerid: message.author.id } });
-                if (findBee != undefined) {
-                    if (findBee.get('beeLevel') + lastArg <= 150) {
-                        const findBeeName = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
-                        let totalMoney = 0;
-                        for (let count = findBee.get('beeLevel'); count < findBee.get('beeLevel') + lastArg; count++) {
-                            totalMoney += (500 * count) * 1.67;
-                        }
-                        if (lastArg > 1 && findplayer.get('money') >= totalMoney) {
-                            const row = new ActionRowBuilder()
-                                .addComponents([
-                                    new ButtonBuilder()
-                                        .setCustomId('confirm')
-                                        .setLabel('Yes')
-                                        .setStyle(ButtonStyle.Success),
-                                    new ButtonBuilder()
-                                        .setCustomId('deny')
-                                        .setLabel('No')
-                                        .setStyle(ButtonStyle.Danger),
-                                ]);
-                            const confirmembed = new EmbedBuilder()
-                                .setColor(0xffe521)
-                                .setFooter({ text: beeFact() })
-                                .addFields({ name: `Are you sure you want to train this bee ${lastArg} times?`, value: `Doing so will cost ${totalMoney} money` });
-                            const confirmMessage = await message.channel.send({ embeds: [confirmembed], components: [row] });
-                            const collectorFilter = i => i.user.id === message.author.id;
-                            const collector = await message.channel.awaitMessageComponent({ filter: collectorFilter, time: 20000 });
-                            if (collector.customId === 'confirm') {
-                                confirmMessage.edit({ content: `Trained your ${capitaliseWords(findBeeName.get('beeName'))} for ${totalMoney} money! Your ${capitaliseWords(findBeeName.get('beeName'))}'s level increased by ${lastArg}!`, embeds: [], components: [] });
-                                await findplayer.update({ money: findplayer.get('money') - totalMoney });
-                                await findBee.update({ beeLevel: findBee.get('beeLevel') + lastArg, beePower: findBee.get('beePower') * (0.05 * lastArg + 1) });
-                            }
-                            if (collector.customId === 'deny') {
-                                confirmMessage.edit({ content: `You decided not to train your ${capitaliseWords(findBeeName.get('beeName'))}.`, embeds: [], components: [] });
-                            }
-                        }
-                        else if (lastArg === 1 && findplayer.get('money') >= totalMoney) {
-                            await message.channel.send(`Trained your ${capitaliseWords(findBeeName.get('beeName'))} for ${totalMoney} money! Your ${capitaliseWords(findBeeName.get('beeName'))}'s level increased by one!`);
-                            await findplayer.update({ money: findplayer.get('money') - totalMoney });
-                            await findBee.update({ beeLevel: findBee.get('beeLevel') + 1 });
-                        }
-                        else {
-                            await message.channel.send('You don\'t have enough money for this lol');
-                        }
-                    }
-                    else {
-                        await message.channel.send('If you train the bee this much, it will go above the level cap lol');
-                    }
-                }
-                else {
-                    await message.channel.send('This is not an IBI associated with a bee you own!');
-                }
-            }
-            catch (error) {
-                await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
-                console.log(error);
-            }
-        }
-
-        // Breed
-        else if (command === 'breed') {
-            try {
-                const chosenBee = args[0];
-                const findBee = await playerbees.findOne({ where: { IBI: chosenBee, playerid: message.author.id } });
-                if (findBee) {
-                    if (findBee.get('beeTier') + 1 <= 10) {
-                        if (findplayer.get('energy') - 50 >= 0) {
-                            const tierRoll = Math.floor(Math.random() * 100);
-                            let breedTier = 0;
-                            if (tierRoll <= Math.floor(100 / findBee.get('beeTier') * findBee.get('tierUpMod'))) {
-                                breedTier += findBee.get('beeTier') + 1;
-                                findBee.update({ tierUpMod: 1, beePower: findBee.get('beePower') * 1.5 });
-                            }
-                            else {
-                                breedTier = findBee.get('beeTier');
-                                findBee.update({ tierUpMod: findBee.get('tierUpMod') + 0.05 });
-                            }
-                            const findBeeName = await beelist.findOne({ where: { beeid: findBee.get('beeid') } });
-                            const breedEmbed = new EmbedBuilder()
-                            .setColor(0xffe521)
-                            .setAuthor({ name: `${message.author.displayName}'s breeding results`, iconURL: message.author.displayAvatarURL() })
-                            .setFooter({ text: beeFact() })
-                            .addFields({ name: `Your ${capitaliseWords(findBeeName.get('beeName'))} had an egg!`, value: `\n${capitaliseWords(findBeeName.get('beeName'))} \nTier: ${breedTier} \nLevel: 1` });
-                            await message.channel.send({ embeds: [breedEmbed] });
-                            findBee.update({ beeLevel: 1, beeTier: breedTier });
-                            findplayer.update({ energy: findplayer.get('energy') - 50 });
-                        }
-                        else {
-                            await message.channel.send('You do not have enough energy to breed your bees! Rest for a while then try again.');
-                        }
-                    }
-                    else {
-                        await message.channel.send('This bee is at the max tier!');
-                    }
-                }
-                else {
-                    await message.channel.send('This is not an IBI associated with a bee you own!');
-                }
-            }
-            catch (error) {
-                await message.channel.send(`There was an error! ${error.name}: ${error.message}`);
-                console.log(error);
-            }
-        }
+        // If it looks like the last comment is wrong, that's because it is... for now.
+        // Reminder to port the rest of the commands to solely files UNLESS they have an abbreviation or gain one.
+        // The rest of these commands did not have their own dedicated file at the time of making this comment...
 
         // Map
-        /* else if (command === 'map') {
+        else if (command === 'map') {
             try {
                 const findArea = await area.findOne({ where: { areaName: findplayer.get('area') } });
                 const areaPos = areaMap[findArea.get('areaid')];
@@ -1113,13 +459,13 @@ client.on('messageCreate', async (message) => {
                     console.log(error);
                 }
             }
-        } */
+        }
 
         // Move
         else if (command === 'move') {
             try {
                 const argsText = args.join(' ').toLowerCase();
-                const findArea = await area.findOne({ where: { areaName: argsText.toLowerCase() } });
+                const findArea = await area.findOne({ where: { areaName: argsText } });
                 if (!findArea) {
                     await message.channel.send('This is not an area you can move your hive to!');
                     return;
@@ -1774,6 +1120,11 @@ client.on('messageCreate', async (message) => {
     }
     else {
         await message.channel.send('You haven\'t started yet! Use `bee start` to start.');
+    }
+    }
+    catch (error) {
+        await message.reply(`There was an error! ${error.name}: ${error.message}`);
+        console.log(error);
     }
 });
 
